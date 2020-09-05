@@ -1,0 +1,17 @@
+.vscode
+__pycache__
+
+# Ignore all files in datasets but keep directory
+/datasets/**
+!/datasets/**/
+
+# Ignore all files in output but keep directory
+**/output/**
+!**/output/**/
+
+# Ignore all files in checkpoints but keep directory
+**/checkpoints/**
+!**/checkpoints/**/
+
+!**readme.txt
+*.pt
