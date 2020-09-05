@@ -2,9 +2,11 @@ if __name__ == '__main__':
     import sys, os
     sys.path.insert(0, os.path.abspath('../'))
 
+    from models.model_factory import Datasets, Models, get_model
+    from models import model_factory
+
     from torch.utils.data import DataLoader
     from data.loaders import PascalVOCClassificationMulticlass
-    from models.vgg_gap_up_p import Vgg16
 
     import torch
     import torch.optim as optim
@@ -115,7 +117,7 @@ if __name__ == '__main__':
                     best_acc = epoch_acc
                     model.save()
 
-    vgg = Vgg16('multiclass_up', 20)
+    vgg = get_model(Datasets.voc2012, Models.Vgg16GAP)
     vgg.to(device)
 
     optimizer = torch.optim.Adam(vgg.parameters(), lr=0.0002)

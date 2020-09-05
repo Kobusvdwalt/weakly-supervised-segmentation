@@ -37,7 +37,7 @@ class PascalVOCClassificationMulticlass(Dataset):
         self.classCount = len(self.classList)
         
         package_directory = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(package_directory, 'processed', 'classification_multiclass_' + source + '.txt')
+        path = os.path.join(package_directory, 'output', 'classification_multiclass_' + source + '.txt')
 
         f = open(path, 'r')
         self.labels = f.readlines()
@@ -54,7 +54,7 @@ class PascalVOCClassificationMulticlass(Dataset):
         
         # Image
         imageName = parts[0]
-        image = cv2.imread('../VOC2012/JPEGImages/' + imageName + '.jpg')
+        image = cv2.imread('../datasets/VOC2012/JPEGImages/' + imageName + '.jpg')
         augmented = self.augmentation(image=image)
         image = augmented['image']
 
@@ -78,7 +78,7 @@ class PascalVOCClassificationBinary(Dataset):
         self.classCount = len(self.classList)
         
         package_directory = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(package_directory, 'processed', 'classification_binary_' + target + '_' + source + '.txt')
+        path = os.path.join(package_directory, 'output', 'classification_binary_' + target + '_' + source + '.txt')
 
         f = open(path, 'r')
         self.labels = f.readlines()
@@ -111,7 +111,7 @@ class PascalVOCClassificationBinary(Dataset):
 
         # Image
         imageName = parts[0]
-        image = cv2.imread('../VOC2012/JPEGImages/' + imageName + '.jpg')
+        image = cv2.imread('../datasets/VOC2012/JPEGImages/' + imageName + '.jpg')
 
         augmented = self.augmentation(image=image)
         image = augmented['image']
@@ -135,7 +135,7 @@ class PascalVOCClassificationBinary(Dataset):
 class PascalVOCSegmentation(Dataset):
     def __init__(self, source='train'):
         package_directory = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(package_directory, 'processed', 'segmentation_' + source + '.txt')
+        path = os.path.join(package_directory, 'output', 'segmentation_' + source + '.txt')
         f = open(path, 'r')
         self.labels = f.readlines()
         self.total = len(self.labels)
@@ -150,7 +150,7 @@ class PascalVOCSegmentation(Dataset):
 
         # Read images and perform augmentation
         image_name = self.labels[sample].replace('\n', '')
-        image = cv2.imread('../VOC2012/JPEGImages/' + image_name + '.jpg')
+        image = cv2.imread('../datasets/VOC2012/JPEGImages/' + image_name + '.jpg')
         
         image_width = image.shape[1]
         image_height = image.shape[0]
@@ -158,7 +158,7 @@ class PascalVOCSegmentation(Dataset):
         if self.source == 'test':
             label = np.zeros(image.shape)
         else:
-            label = cv2.imread('../VOC2012/SegmentationClass/' + image_name + '.png')
+            label = cv2.imread('../datasets/VOC2012/SegmentationClass/' + image_name + '.png')
 
         transform = self.augmentation(image=image, mask=label)
         image = transform['image']

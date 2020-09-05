@@ -24,3 +24,11 @@ Step 3:
 Step 4:
     Install albumentations
 
+Step 5:
+    Download and extract the datasets
+
+Step 6:
+    Preprocess the datasets by running /data/voc2012-preprocess.py and /data/cityscapes-preprocess.py
+
+Step 7:
+    Train a classifier by running /classification_multiclass/train.py

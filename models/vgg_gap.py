@@ -2,9 +2,9 @@ import torchvision
 import torch
 import os
 
-class Vgg16(torch.nn.Module):
+class Vgg16GAP(torch.nn.Module):
     def __init__(self, name, outputs):
-        super(Vgg16, self).__init__()
+        super(Vgg16GAP, self).__init__()
         self.name = name
         self.vgg16 = torchvision.models.vgg16(pretrained=True, progress=True)
         self.vgg16.features = self.vgg16.features[:-1]
