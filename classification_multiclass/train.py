@@ -4,33 +4,17 @@ if __name__ == '__main__':
 
     from models.model_factory import Datasets, Models, get_model
     from models import model_factory
-
     from torch.utils.data import DataLoader
-    from data.loaders import PascalVOCClassificationMulticlass
+    from data.loader_factory import get_loader, LoaderSplit, LoaderType
+    from torch.optim import lr_scheduler
+    from torchvision import datasets, models, transforms
 
     import torch
-    import torch.optim as optim
-    from torch.optim import lr_scheduler
     import numpy as np
-    import torchvision
-    from torchvision import datasets, models, transforms
-    import matplotlib.pyplot as plt
     import time
     import os
-    import copy
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    # Set up dataloader
-    pascal_train = PascalVOCClassificationMulticlass(source='train')
-    pascal_val = PascalVOCClassificationMulticlass(source='val')
-
-    dataloaders = {
-        'train': DataLoader(pascal_train, batch_size=16, shuffle=True, num_workers=6),
-        'val': DataLoader(pascal_val, batch_size=16, shuffle=False, num_workers=6)
-    }
-
-    def train_model(model, criterion, optimizer, scheduler, num_epochs=30):
+    def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs, output_size):
         since = time.time()
 
         best_acc = 0.0
@@ -45,10 +29,10 @@ if __name__ == '__main__':
                         break
                     model.eval()
 
-                tp = torch.zeros(20).to(device)
-                tn = torch.zeros(20).to(device)
-                fp = torch.zeros(20).to(device)
-                fn = torch.zeros(20).to(device)
+                tp = torch.zeros(output_size).to(device)
+                tn = torch.zeros(output_size).to(device)
+                fp = torch.zeros(output_size).to(device)
+                fn = torch.zeros(output_size).to(device)
 
                 batch_count = 0
                 for inputs, labels, _ in dataloaders[phase]:
@@ -117,9 +101,29 @@ if __name__ == '__main__':
                     best_acc = epoch_acc
                     model.save()
 
-    vgg = get_model(Datasets.voc2012, Models.Vgg16GAP)
-    vgg.to(device)
+    # Config training here :
+    dataset = Datasets.cityscapes
+    model = Models.Vgg16GAP
+    class_count = 19 # TODO: fix this class_count so that it's dataset dependant and not manual
 
-    optimizer = torch.optim.Adam(vgg.parameters(), lr=0.0002)
+    # Set up datasets
+    dataset_train = get_loader(dataset, LoaderType.classification, LoaderSplit.train)
+    dataset_val = get_loader(dataset, LoaderType.classification, LoaderSplit.val)
+    
+    # Set up dataloaders
+    dataloaders = {
+        'train': DataLoader(dataset_train, batch_size=16, shuffle=True, num_workers=6),
+        'val': DataLoader(dataset_val, batch_size=16, shuffle=False, num_workers=6)
+    }
+
+    # Set up model
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = get_model(dataset, model)
+    model.to(device)
+
+    # Set up optimizer and scheduler
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
-    train_model(vgg, torch.nn.BCELoss(), optimizer, scheduler)
+
+    # Kick off training
+    train_model(dataloaders, model, torch.nn.BCELoss(), optimizer, scheduler, 40, class_count)

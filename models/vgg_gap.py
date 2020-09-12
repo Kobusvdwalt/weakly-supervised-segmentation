@@ -20,21 +20,11 @@ class Vgg16GAP(torch.nn.Module):
                 param.requires_grad = False
             count += 1
 
-        # self.gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        # self.dense = torch.nn.Linear(512, outputs)
-        # self.sigmoid = torch.nn.Sigmoid()
-
         self.conv = torch.nn.Conv2d(512, outputs, 1)
         self.gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, x):
-        # x = self.vgg16.features(x)
-        # x = self.gap(x)
-        # x = torch.flatten(x, 1)
-        # x = self.dense(x)
-        # x = self.sigmoid(x)
-
         x = self.vgg16.features(x)
         x = self.conv(x)
         x = self.gap(x)

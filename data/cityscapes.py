@@ -5,6 +5,7 @@ from collections import namedtuple
 # Definitions
 #--------------------------------------------------------------------------------
 import numpy as np
+from numpy.lib.function_base import append
 # a label and all meta information
 Label = namedtuple( 'Label' , [
     'name'        , # The identifier of this label, e.g. 'car', 'person', ... .
@@ -101,6 +102,15 @@ class_count = len(selected_labels)
 
 def get_class_count():
     return class_count
+
+def get_labels():
+    return selected_labels
+
+def get_label_words():
+    label_words = []
+    for index, label in enumerate(selected_labels):
+        label_words.append(label.name)
+    return label_words
 
 def image_to_label(image):
     label = np.zeros((class_count, image.shape[0], image.shape[1]))

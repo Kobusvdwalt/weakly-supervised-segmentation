@@ -5,6 +5,10 @@ import numpy as np
 class_list_classification = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 class_list = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 class_count = len(class_list)
+
+def get_class_count():
+    return len(class_list_classification)
+
 # Generates the color mappings for PASCAL_VOC
 def color_map(N=256, normalized=False):
     def bitget(byteval, idx):

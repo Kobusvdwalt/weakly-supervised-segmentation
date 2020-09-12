@@ -1,24 +1,21 @@
-from torch.utils.data import Dataset, DataLoader
-import torch
-import math
-import random
+from torch.utils.data import Dataset
 import numpy as np
 import cv2
 import albumentations
-import os
+import sys, os
+sys.path.insert(0, os.path.abspath('../'))
 
-from data.voc2012 import class_list_classification
-from data.voc2012 import ImageToLabel
+from data.cityscapes import get_label_words, image_to_label
 
 def composeAugmentation(source, size=256):
     if source == 'train':
         augmentation = albumentations.Compose(
         [
-            albumentations.Rotate(5, always_apply=True),
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(size, size, cv2.BORDER_CONSTANT, 0),
-            albumentations.HorizontalFlip(),
-            albumentations.GaussNoise(),
+            # albumentations.Rotate(5, always_apply=True),
+            albumentations.LongestMaxSize(512, always_apply=True),
+            # albumentations.PadIfNeeded(size, size, cv2.BORDER_CONSTANT, 0),
+            # albumentations.HorizontalFlip(),
+            # albumentations.GaussNoise(),
             albumentations.Normalize(always_apply=True)
         ])
     else:
@@ -31,13 +28,13 @@ def composeAugmentation(source, size=256):
 
     return augmentation
 
-class PascalVOCClassificationMulticlass(Dataset):
+class CityscapesClassification(Dataset):
     def __init__(self, source='train'):
-        self.classList = class_list_classification
+        self.classList = get_label_words()
         self.classCount = len(self.classList)
         
         package_directory = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(package_directory, 'output', 'classification_multiclass_' + source + '.txt')
+        path = os.path.join(package_directory, 'output', 'cityscapes_classification_' + source + '.txt')
 
         f = open(path, 'r')
         self.labels = f.readlines()
@@ -54,7 +51,8 @@ class PascalVOCClassificationMulticlass(Dataset):
         
         # Image
         imageName = parts[0]
-        image = cv2.imread('../datasets/VOC2012/JPEGImages/' + imageName + '.jpg')
+        image = cv2.imread('../datasets/cityscapes/' + imageName)
+
         augmented = self.augmentation(image=image)
         image = augmented['image']
 
@@ -72,67 +70,7 @@ class PascalVOCClassificationMulticlass(Dataset):
         label[label == 1] = 0.9
         return (image, label, imageName)
 
-class PascalVOCClassificationBinary(Dataset):
-    def __init__(self, source='train', target='aeroplane'):
-        self.classList = class_list_classification
-        self.classCount = len(self.classList)
-        
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(package_directory, 'output', 'classification_binary_' + target + '_' + source + '.txt')
-
-        f = open(path, 'r')
-        self.labels = f.readlines()
-        self.total = len(self.labels)
-        self.labels_true = []
-        self.labels_false = []
-        
-        for sample in range(0, self.total-1):
-            parts = self.labels[sample].replace('\n', '').split(' ')
-            if (parts[1] == '1'):
-                self.labels_true.append(sample)
-            else:
-                self.labels_false.append(sample)
-
-        self.source = source
-        self.augmentation = composeAugmentation(source)
-    def __len__(self):
-        return self.total
-
-    def __getitem__(self, idx):
-        if (self.source == 'train'):
-            if (random.randint(0, 100) > 50):
-                sample = self.labels_true[random.randint(0, len(self.labels_true)-1)]
-            else:
-                sample = self.labels_false[random.randint(0, len(self.labels_false)-1)]
-        else:
-            sample = idx
-
-        parts = self.labels[sample].replace('\n', '').split(' ')
-
-        # Image
-        imageName = parts[0]
-        image = cv2.imread('../datasets/VOC2012/JPEGImages/' + imageName + '.jpg')
-
-        augmented = self.augmentation(image=image)
-        image = augmented['image']
-
-        # Label
-        label = np.zeros(shape=(2))
-
-        if (parts[1] == '1'):
-            label[0] = 1
-            label[1] = 0
-        else:
-            label[0] = 0
-            label[1] = 1
-
-        # Label smoothing
-        # https://arxiv.org/pdf/1906.02629.pdf
-        label[label == 0] = 0.1
-        label[label == 1] = 0.9
-        return (image, label, imageName)
-
-class PascalVOCSegmentation(Dataset):
+class CityscapesSegmentation(Dataset):
     def __init__(self, source='train'):
         package_directory = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(package_directory, 'output', 'segmentation_' + source + '.txt')
