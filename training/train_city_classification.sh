@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=CC
+#SBATCH --job-name=CityClas
 #SBATCH --output=output_city_classification.txt
 #SBATCH --ntasks=1
 #SBATCH --partition=batch

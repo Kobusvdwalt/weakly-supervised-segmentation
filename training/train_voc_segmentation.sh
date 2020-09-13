@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=VC
+#SBATCH --job-name=VocSeg
 #SBATCH --output=output_voc_segmentation.txt
 #SBATCH --ntasks=1
 #SBATCH --partition=batch

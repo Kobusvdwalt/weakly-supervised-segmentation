@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=VC
+#SBATCH --job-name=CitySeg
 #SBATCH --output=output_city_segmentation.txt
 #SBATCH --ntasks=1
 #SBATCH --partition=batch
