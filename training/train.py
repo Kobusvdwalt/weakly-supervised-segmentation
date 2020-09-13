@@ -1,12 +1,17 @@
 
 
 
+
+
+
 if __name__ == '__main__':
     import sys, os
     sys.path.insert(0, os.path.abspath('../'))
 
     from metrics.f1 import f1
     from metrics.accuracy import accuracy
+    from metrics.iou import iou
+    from data.voc2012 import LabelToImage
 
     from models.model_factory import Datasets, Models, get_model
     from models import model_factory
@@ -19,6 +24,7 @@ if __name__ == '__main__':
     import numpy as np
     import time
     import os
+    import cv2
 
     def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs, metrics):
         print('Training Start: ' + str(time.time()))
@@ -42,6 +48,11 @@ if __name__ == '__main__':
                 for inputs, labels, _, _, _ in dataloaders[phase]:
                     batch_count += 1
 
+                    image_np = inputs[0].cpu().detach().numpy()
+                    label_np = labels[0].cpu().detach().numpy()
+                    cv2.imshow('Image', image_np)
+                    cv2.imshow('Label', LabelToImage(label_np))
+
                     inputs = inputs.permute(0, 3, 1, 2)
                     inputs = inputs.to(device).float()
                     labels = labels.to(device).float()
@@ -50,6 +61,12 @@ if __name__ == '__main__':
 
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs = model(inputs)
+
+                        output_np = outputs[0].cpu().detach().numpy()
+                        output_np[0, :, :] = 0
+                        cv2.imshow('Output', LabelToImage(output_np))
+                        cv2.waitKey(1)
+
                         loss = criterion(outputs, labels)
 
                         if phase == 'train':
@@ -67,7 +84,6 @@ if __name__ == '__main__':
                     print('', end='\r')
                 print('')
 
-                key = None
                 metric_epoch = metric_store[list(metric_store)[0]] / batch_count
                 if phase == 'train':
                     scheduler.step()
@@ -82,7 +98,7 @@ if __name__ == '__main__':
     model = Models.Unet
     metrics = {
         'f1': f1,
-        'accuracy': accuracy,
+        'iou': iou
     }
     epochs = 15
     batch_size=4
@@ -101,10 +117,11 @@ if __name__ == '__main__':
     # Set up model
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = get_model(dataset, model)
+    model.load()
     model.to(device)
 
     # Set up optimizer and scheduler
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0002)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
     # Kick off training
