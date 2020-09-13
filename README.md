@@ -20,8 +20,10 @@ Step 2:
 
 Step 3:
     Create new environement and install pytorch
+    Select environment with source anaconda3/bin/activate and then do conda activate pytorch
 
 Step 4:
+    Install gdown (pip install gdown)
     Install albumentations
 
 Step 5:
