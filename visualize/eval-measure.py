@@ -13,7 +13,7 @@ finalCount = np.zeros((21))
 for filename in os.listdir('output_multiclass'):
     if (filename.split('.')[1] != 'png'):
         continue
-    labelImage = cv2.imread('../VOC2012/SegmentationClass/' + filename)
+    labelImage = cv2.imread('../voc2012/SegmentationClass/' + filename)
     outputImage = cv2.imread('output_multiclass/' + filename)
     
     label = ImageToLabel(labelImage)

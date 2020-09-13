@@ -94,6 +94,7 @@ labels = [
 
 class_count = 0
 selected_labels = []
+selected_labels.append(labels[0]) # Background class
 for label in labels:
     if (label.trainId != 255 and label.trainId != -1):
         selected_labels.append(label)
@@ -119,6 +120,18 @@ def image_to_label(image):
         label[i] = feature[:, :] / 1.0
 
     return label
+
+def label_to_image(label):
+    label[label > 0.2] = 1
+    label[label <= 0.2] = 0
+
+    image = np.zeros((label.shape[1], label.shape[2], 3))
+
+    mask_a = np.argmax(label, 0)
+    for i in range(0, class_count):
+        image[mask_a == i] = (selected_labels[i].color[2] / 255.0, selected_labels[i].color[1] / 255.0, selected_labels[i].color[0] / 255.0)
+
+    return image
 
 def image_to_classes(image):
     classes = np.zeros(class_count)

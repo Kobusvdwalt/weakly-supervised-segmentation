@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath('../'))
 
 from data.cityscapes import get_label_words, image_to_label
 
-def composeAugmentation(source, size=256):
+def compose_augmentation(source, size=256):
     if source == 'train':
         augmentation = albumentations.Compose(
         [
@@ -40,7 +40,7 @@ class CityscapesClassification(Dataset):
         self.labels = f.readlines()
         self.total = len(self.labels)
         self.source = source
-        self.augmentation = composeAugmentation(source)
+        self.augmentation = compose_augmentation(source)
 
     def __len__(self):
         return self.total
@@ -50,17 +50,17 @@ class CityscapesClassification(Dataset):
         parts = self.labels[sample].replace('\n', '').split(' ')
         
         # Image
-        imageName = parts[0]
-        image = cv2.imread('../datasets/cityscapes/' + imageName)
+        image_name = parts[0]
+        image = cv2.imread('../datasets/cityscapes/' + image_name)
 
         augmented = self.augmentation(image=image)
         image = augmented['image']
 
         # Label
         label = np.zeros(shape=(self.classCount))
-        labelParts = parts[1].split('|')
+        label_parts = parts[1].split('|')
 
-        for lpart in labelParts:
+        for lpart in label_parts:
             if lpart in self.classList:
                 label[self.classList.index(lpart)] = 1
         
@@ -68,18 +68,18 @@ class CityscapesClassification(Dataset):
         # https://arxiv.org/pdf/1906.02629.pdf
         label[label == 0] = 0.1
         label[label == 1] = 0.9
-        return (image, label, imageName)
+        return (image, label, image_name, 0, 0)
 
 class CityscapesSegmentation(Dataset):
     def __init__(self, source='train'):
         package_directory = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(package_directory, 'output', 'segmentation_' + source + '.txt')
+        path = os.path.join(package_directory, 'output', 'cityscapes_segmentation_' + source + '.txt')
         f = open(path, 'r')
         self.labels = f.readlines()
         self.total = len(self.labels)
         self.source = source
 
-        self.augmentation = composeAugmentation(source)
+        self.augmentation = compose_augmentation(source)
     def __len__(self):
         return self.total
 
@@ -87,23 +87,19 @@ class CityscapesSegmentation(Dataset):
         sample = idx
 
         # Read images and perform augmentation
-        image_name = self.labels[sample].replace('\n', '')
-        image = cv2.imread('../datasets/VOC2012/JPEGImages/' + image_name + '.jpg')
-        
+        image_name = self.labels[sample].replace('\n', '').split(' ')[0]
+        label_name = self.labels[sample].replace('\n', '').split(' ')[1]
+        image = cv2.imread('../datasets/cityscapes/' + image_name)
+        label = cv2.imread('../datasets/cityscapes/' + label_name)
         image_width = image.shape[1]
         image_height = image.shape[0]
-
-        if self.source == 'test':
-            label = np.zeros(image.shape)
-        else:
-            label = cv2.imread('../datasets/VOC2012/SegmentationClass/' + image_name + '.png')
 
         transform = self.augmentation(image=image, mask=label)
         image = transform['image']
         label = transform['mask']
 
         # Construct Label        
-        label_array = ImageToLabel(label)
+        label_array = image_to_label(label)
         label = label_array
 
         return (image, label, image_name, image_width, image_height)

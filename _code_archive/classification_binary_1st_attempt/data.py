@@ -61,7 +61,7 @@ class PascalVOCClassificationBinary(Dataset):
         selectedImage = selectedImage.replace('\n', '')
 
         # Image
-        image = cv2.imread('../VOC2012/JPEGImages/' + selectedImage + '.jpg')
+        image = cv2.imread('../voc2012/JPEGImages/' + selectedImage + '.jpg')
 
         et = self.augment(image=image)
         image = et['image'] / 255.0

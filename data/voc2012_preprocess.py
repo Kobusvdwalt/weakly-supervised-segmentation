@@ -12,7 +12,7 @@ def multiclass_generation(source):
     labels = {}
     textFile = open('./output/voc2012_classification_' + source + '.txt', 'w')
     for className in class_list_classification:
-        f = open('../datasets/VOC2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
+        f = open('../datasets/voc2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
         lines = f.readlines()
 
         for line in lines:
@@ -47,7 +47,7 @@ multiclass_generation('test')
 def binary_generation(source):
     labels = {}
     for className in class_list_classification:
-        f = open('../datasets/VOC2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
+        f = open('../datasets/voc2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
         lines = f.readlines()
         
         textFile = open('./output/classification_binary_' + className + '_' + source + '.txt', 'w')
@@ -62,7 +62,7 @@ def binary_generation(source):
 # **********************************************************
 # Segmentation
 def segmentation_generation(source):
-    f = open('../datasets/VOC2012/ImageSets/Segmentation/' + source + '.txt', 'r')
+    f = open('../datasets/voc2012/ImageSets/Segmentation/' + source + '.txt', 'r')
     lines = f.readlines()
 
     textFile = open('./output/voc2012_segmentation_' + source + '.txt', 'w')

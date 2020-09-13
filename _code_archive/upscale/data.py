@@ -70,8 +70,8 @@ class PascalVOCSegmentation(Dataset):
 
         # Read images and perform augmentation
         imageName = self.labels[sample].replace('\n', '')
-        image = cv2.imread('../VOC2012/JPEGImages/' + imageName + '.jpg')
-        label = cv2.imread('../VOC2012/SegmentationClass/' + imageName + '.png')
+        image = cv2.imread('../voc2012/JPEGImages/' + imageName + '.jpg')
+        label = cv2.imread('../voc2012/SegmentationClass/' + imageName + '.png')
         transform = self.augment(image=image, mask=label)
         image = transform['image'] / 255.0
         label = transform['mask']

@@ -11,7 +11,7 @@ labels = {}
 def buildText(className, source):
     labels = {}
     textFile = open('./data/' + className + '_' + source + '.txt', 'w')
-    f = open('../VOC2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
+    f = open('../voc2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
     lines = f.readlines()
     for line in lines:
         line = line.replace('\n', '')
