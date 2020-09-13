@@ -133,7 +133,7 @@ class PascalVOCClassificationBinary(Dataset):
 class PascalVOCSegmentation(Dataset):
     def __init__(self, source='train'):
         package_directory = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(package_directory, 'output', 'segmentation_' + source + '.txt')
+        path = os.path.join(package_directory, 'output', 'voc2012_segmentation_' + source + '.txt')
         f = open(path, 'r')
         self.labels = f.readlines()
         self.total = len(self.labels)

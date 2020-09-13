@@ -1,34 +1,35 @@
+
 import torch
-import torch.nn as nn
-from data import classListArray
+import os
 
 def double_conv(in_channels, out_channels):
-    return nn.Sequential(
-        nn.Conv2d(in_channels, out_channels, 3, padding=1),
-        nn.ReLU(inplace=True),
-        nn.Conv2d(out_channels, out_channels, 3, padding=1),
-        nn.ReLU(inplace=True)
-    )   
+    return torch.nn.Sequential(
+        torch.nn.Conv2d(in_channels, out_channels, 3, padding=1),
+        torch.nn.ReLU(inplace=True),
+        torch.nn.Conv2d(out_channels, out_channels, 3, padding=1),
+        torch.nn.ReLU(inplace=True)
+    )
 
 
-class UNet(nn.Module):
-    def __init__(self, n_class):
+class UNet(torch.nn.Module):
+    def __init__(self, name, outputs):
         super().__init__()
-        self.maxpool = nn.MaxPool2d(2)
+        self.name = name
+        self.maxpool = torch.nn.MaxPool2d(2)
                 
         self.dconv_down1 = double_conv(3, 64)
         self.dconv_down2 = double_conv(64, 128)
         self.dconv_down3 = double_conv(128, 256)
         self.dconv_down4 = double_conv(256, 512)        
 
-        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
+        self.upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
         
         self.dconv_up3 = double_conv(256 + 512, 256)
         self.dconv_up2 = double_conv(128 + 256, 128)
         self.dconv_up1 = double_conv(128 + 64, 64)
         
-        self.conv_last = nn.Conv2d(64, n_class, 1)
-        self.sigmoid = nn.Sigmoid()
+        self.conv_last = torch.nn.Conv2d(64, outputs, 1)
+        self.sigmoid = torch.nn.Sigmoid()
         
         
     def forward(self, x):
@@ -61,5 +62,13 @@ class UNet(nn.Module):
 
         return x
 
-unet = UNet(len(classListArray))
-unet.load_state_dict(torch.load('checkpoints/unet.pt'))
+    def load(self):
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
+        self.load_state_dict(torch.load(weight_path))
+
+    def save(self):
+        print('saving model')
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
+        torch.save(self.state_dict(), weight_path)
