@@ -4,6 +4,7 @@ __pycache__
 # Ignore all files in datasets but keep directory
 /datasets/**
 !/datasets/**/
+!/datasets/**.py
 
 # Ignore all files in output but keep directory
 **/output/**
