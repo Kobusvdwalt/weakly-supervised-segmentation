@@ -1,4 +1,3 @@
-import gdown
-url = 'https://drive.google.com/uc?id=1wn3uofULi1eoTgSGRw9_b4YlzXEe17cP&export=download'
-output = 'voc2012.zip'
-gdown.download(url, output, quiet=False)
+import wget
+url = 'https://sa-ml-datasets.s3.af-south-1.amazonaws.com/voc2012.zip'
+filename = wget.download(url)

@@ -23,7 +23,7 @@ Step 3:
     Select environment with source anaconda3/bin/activate and then do conda activate pytorch
 
 Step 4:
-    Install gdown (pip install gdown)
+    Install wget (pip install wget)
     Install albumentations
 
 Step 5:
@@ -33,4 +33,4 @@ Step 6:
     Preprocess the datasets by running /data/voc2012_preprocess.py and /data/cityscapes_preprocess.py
 
 Step 7:
-    Train a classifier by running /classification_multiclass/train.py
+    Train a classifier by running /training/[name of training script].py
