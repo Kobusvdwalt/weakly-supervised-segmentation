@@ -42,7 +42,7 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
             metric_store = {}
             for metric_name in metrics:
                 metric_store[metric_name] = 0
-            for inputs, labels, names, widths, heights in dataloaders[phase]:
+            for inputs, labels, names, meta in dataloaders[phase]:
                 batch_count += 1
 
                 # image_np = inputs[0].numpy()

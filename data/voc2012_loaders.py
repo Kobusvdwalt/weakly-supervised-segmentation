@@ -67,7 +67,10 @@ class PascalVOCClassificationMulticlass(Dataset):
         # https://arxiv.org/pdf/1906.02629.pdf
         label[label == 0] = 0.1
         label[label == 1] = 0.9
-        return (image, label, image_name, 0, 0)
+
+        meta = np.array([256, 256, 0, 0])
+
+        return (image, label, image_name, meta)
 
 class PascalVOCSegmentation(Dataset):
     def __init__(self, source='train'):
@@ -105,7 +108,9 @@ class PascalVOCSegmentation(Dataset):
         label_array = ImageToLabel(label)
         label = label_array
 
-        return (image, label, image_name, image_width, image_height)
+        meta = np.array([256, 256, image_width, image_height])
+
+        return (image, label, image_name, meta)
 
 
 # class PascalVOCClassificationBinary(Dataset):

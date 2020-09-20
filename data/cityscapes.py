@@ -6,6 +6,7 @@ from collections import namedtuple
 #--------------------------------------------------------------------------------
 import numpy as np
 from numpy.lib.function_base import append
+from torch import dtype
 # a label and all meta information
 Label = namedtuple( 'Label' , [
     'name'        , # The identifier of this label, e.g. 'car', 'person', ... .
@@ -100,6 +101,13 @@ for label in labels:
         selected_labels.append(label)
 
 class_count = len(selected_labels)
+
+def color_map(N=256, normalized=False):
+    cmap = np.zeros((N, 3), dtype='uint8')
+    for index, label in enumerate(selected_labels):
+        cmap[index] = label.color
+
+    return cmap
 
 def get_class_count():
     return class_count
