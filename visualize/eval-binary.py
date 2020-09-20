@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.abspath('../'))
 
 from torch.utils.data import DataLoader
 from data.loaders import PascalVOCSegmentation
-from data.voc2012 import class_list, class_list_classification, LabelToImage, ImageToLabel, LabelToClasses, ClassesToWords, ThresholdClasses, AddBackgroundClass
+from data.voc2012 import class_list, class_list, LabelToImage, ImageToLabel, LabelToClasses, ClassesToWords, ThresholdClasses, AddBackgroundClass
 
 from models.vgg_gap import Vgg16
 
@@ -32,7 +32,7 @@ for images, labels, imageNames in data:
     for sample_index in range(0, len(inputs)):
         sample_input = inputs[sample_index].unsqueeze(0)
         final = np.zeros((21, 256, 256))
-        for class_name in class_list_classification:
+        for class_name in class_list:
             model = Vgg16('binary_' + class_name, 2)
             model.train()
             model.load()

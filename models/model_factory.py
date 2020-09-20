@@ -29,11 +29,10 @@ def get_model(dataset, model):
 
     # Model constructor
     if model == Models.Vgg16GAP:
+        class_count -= 1
         model_constructor = Vgg16GAP
     if model == Models.Unet:
         model_constructor = UNet
-        if dataset == Datasets.voc2012:
-            class_count += 1 # TODO: this can be done a little more elagantly
 
     name = model.name + '_' + dataset.name
 

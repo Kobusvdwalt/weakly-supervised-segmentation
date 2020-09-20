@@ -4,7 +4,7 @@ import cv2
 import albumentations
 import os
 
-from data.voc2012 import class_list_classification
+from data.voc2012 import class_list
 from data.voc2012 import ImageToLabel
 
 def composeAugmentation(source, size=256):
@@ -30,7 +30,7 @@ def composeAugmentation(source, size=256):
 
 class PascalVOCClassificationMulticlass(Dataset):
     def __init__(self, source='train'):
-        self.classList = class_list_classification
+        self.classList = class_list[1:]
         self.classCount = len(self.classList)
         
         package_directory = os.path.dirname(os.path.abspath(__file__))
@@ -110,7 +110,7 @@ class PascalVOCSegmentation(Dataset):
 
 # class PascalVOCClassificationBinary(Dataset):
 #     def __init__(self, source='train', target='aeroplane'):
-#         self.classList = class_list_classification
+#         self.classList = class_list
 #         self.classCount = len(self.classList)
         
 #         package_directory = os.path.dirname(os.path.abspath(__file__))

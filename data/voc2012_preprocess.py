@@ -4,14 +4,14 @@
 import sys, os
 sys.path.insert(0, os.path.abspath('../'))
 
-from data.voc2012 import class_list_classification
+from data.voc2012 import class_list
 
 # **********************************************************
-# Classification Multiclass
-def multiclass_generation(source):
+# Classification
+def classification_generation(source):
     labels = {}
     textFile = open('./output/voc2012_classification_' + source + '.txt', 'w')
-    for className in class_list_classification:
+    for className in class_list[1:]:
         f = open('../datasets/voc2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
         lines = f.readlines()
 
@@ -37,23 +37,23 @@ def multiclass_generation(source):
 
     textFile.close()
 
-multiclass_generation('train')
-multiclass_generation('val')
-multiclass_generation('test')
+classification_generation('train')
+classification_generation('val')
+classification_generation('test')
 
 
 # **********************************************************
 # Classification Binary
-def binary_generation(source):
-    labels = {}
-    for className in class_list_classification:
-        f = open('../datasets/voc2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
-        lines = f.readlines()
+# def binary_generation(source):
+#     labels = {}
+#     for className in class_list:
+#         f = open('../datasets/voc2012/ImageSets/Main/' +className+ '_' + source + '.txt', 'r')
+#         lines = f.readlines()
         
-        textFile = open('./output/classification_binary_' + className + '_' + source + '.txt', 'w')
-        for line in lines:
-            textFile.write(line.replace('  ', ' '))
-        textFile.close()
+#         textFile = open('./output/classification_binary_' + className + '_' + source + '.txt', 'w')
+#         for line in lines:
+#             textFile.write(line.replace('  ', ' '))
+#         textFile.close()
 
 # binary_generation('train')
 # binary_generation('val')

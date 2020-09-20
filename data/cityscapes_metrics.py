@@ -22,12 +22,16 @@ for line in lines:
     class_count_store += classes
 
     # Which images don't have "ROAD"
-    # if (classes[0] == 0):
+    # if (classes[1] == 0):
     #     label_path = image_path.replace('_leftImg8bit', '_gtFine_color')
     #     label_path = label_path.replace('leftImg8bit', 'gtFine')
 
     #     image = cv2.imread('../datasets/cityscapes/' + image_path)
     #     label = cv2.imread('../datasets/cityscapes/' + label_path)
+    #     cv2.imshow('image', image)
+    #     cv2.imshow('label', label)
+    #     cv2.waitKey(0)
+        
 
 image_count = len(lines)
 print('Image Count:')

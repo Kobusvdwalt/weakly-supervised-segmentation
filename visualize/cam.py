@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-import gc
 from statistics import mode, mean
 
 
