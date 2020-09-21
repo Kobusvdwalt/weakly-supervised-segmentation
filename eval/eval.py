@@ -1,73 +1,63 @@
-if __name__ == '__main__':
-    import sys, os
-    sys.path.insert(0, os.path.abspath('../'))
-    from torch.utils.data import DataLoader
-    from data.loaders import PascalVOCClassificationMulticlass
-    from models.vgg_gap_up_p import Vgg16
 
-    import torch
-    import torch.optim as optim
-    from torch.optim import lr_scheduler
-    import numpy as np
-    import torchvision
-    from torchvision import datasets, models, transforms
-    import matplotlib.pyplot as plt
-    import time
-    import json
-    import copy
+import sys, os, torch, json
+import numpy as np
+sys.path.insert(0, os.path.abspath('../'))
+from torch.utils.data.dataloader import DataLoader
+from models.model_factory import Datasets, Models, get_model
+from data.loader_factory import LoaderSplit, LoaderType, get_loader
 
-    class NumpyEncoder(json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            return json.JSONEncoder.default(self, obj)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    
-    # Set up dataloader
-    source = 'val'
-    pascal_val = PascalVOCClassificationMulticlass(source=source)
-    dataloader = DataLoader(pascal_val, batch_size=16, shuffle=False, num_workers=6)
 
-    def eval_model(model, criterion):
-        model.eval()
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
-        tp = torch.zeros(20).to(device)
-        tn = torch.zeros(20).to(device)
-        fp = torch.zeros(20).to(device)
-        fn = torch.zeros(20).to(device)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        labels_save = []
-        outputs_save = []
-        imageNames_save = []
+def evaluate_model(model, dataloader, output_name):
+    image_count = 0
 
-        batch_count = 0
-        for inputs, labels, imageNames in dataloader:
-            batch_count += 1
-            inputs = inputs.permute(0, 3, 1, 2)
-            inputs = inputs.to(device).float()
-            labels = labels.to(device).float()
+    labels_save = []
+    outputs_save = []
+    names_save = []
 
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
+    for inputs, labels, names, meta in dataloader:
+        inputs = inputs.permute(0, 3, 1, 2)
+        inputs = inputs.to(device).float()
+        labels = labels.to(device).float()
 
-            for i in range(0, inputs.shape[0]):
-                outputs_save.append(outputs[i].detach().cpu().numpy())
-                labels_save.append(labels[i].detach().cpu().numpy())
-                imageNames_save.append(imageNames[i])
+        outputs = model(inputs)
 
-            print(' Batch: {} '.format(batch_count), end='\r')
+        outputs_save.append(outputs[0].detach().cpu().numpy())
+        labels_save.append(labels[0].detach().cpu().numpy())
+        names_save.append(names[0])
 
-        data = {}
-        data['labels'] = labels_save
-        data['outputs'] = outputs_save
-        data['imageNames'] = imageNames_save
+        print('Image No: ' + str(image_count))
+        image_count += 1
 
-        with open('output/data_' + source + '.txt', 'w') as outfile:
-            json.dump(data, outfile, cls=NumpyEncoder)
-    
-    vgg = Vgg16('multiclass_up', 20)
-    vgg.load()
-    vgg.to(device)
+    data = {}
+    data['labels'] = labels_save
+    data['outputs'] = outputs_save
+    data['names'] = names_save
 
-    eval_model(vgg, torch.nn.BCELoss())
+    with open('output/raw_' + output_name + '.txt', 'w') as outfile:
+        json.dump(data, outfile, cls=NumpyEncoder)
+
+def evaluate(model_enum = Models.Vgg16GAP, dataset_enum = Datasets.voc2012, loader_split = LoaderSplit.val):
+    # Set dataset
+    dataset = get_loader(dataset_enum, LoaderType.classification, loader_split)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
+
+    # Set up model
+    model = get_model(dataset_enum, model_enum)
+    model.train()
+    model.load()
+    model.to(device)
+
+    output_name = model_enum.name + '_' + dataset_enum.name + '_' + loader_split.name
+
+    evaluate_model(model, dataloader, output_name)
+
+evaluate()

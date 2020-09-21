@@ -113,9 +113,7 @@ def visualize(model_enum = Models.Vgg16GAP, dataset_enum = Datasets.cityscapes, 
 
     # Get palette
     palette = voc2012.color_map(256)
-    # if (dataset_enum == Datasets.cityscapes):
-    #     palette = cityscapes.color_map(256)
+    if (dataset_enum == Datasets.cityscapes):
+        palette = cityscapes.color_map(256)
 
     visualize_model(model, dataloader, folder_name, palette)
-
-visualize()
