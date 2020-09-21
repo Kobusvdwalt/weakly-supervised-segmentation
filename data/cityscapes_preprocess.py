@@ -7,6 +7,22 @@ sys.path.insert(0, os.path.abspath('../'))
 from data.cityscapes import classes_to_words, image_to_classes, image_to_label
 
 # **********************************************************
+# Segmentation
+def segmentation_generation(split):
+    text_file = open('./output/cityscapes_segmentation_' + split + '.txt', 'w')
+    cities = os.listdir('../datasets/cityscapes/leftImg8bit/' + split + '/')
+    for city in cities:
+        files = os.listdir('../datasets/cityscapes/leftImg8bit/' + split + '/' + city + '/')
+        for file in files:
+            text_file.write('leftImg8bit/' + split + '/' + city + '/' + file + ' ')
+            text_file.write('gtFine/' + split + '/' + city + '/' + file.replace('leftImg8bit', 'gtFine_color') +'\n')
+    text_file.close()
+
+segmentation_generation('train')
+segmentation_generation('val')
+segmentation_generation('test')
+
+# **********************************************************
 # Classification
 def classification_generation(split):
     count = 0
@@ -36,18 +52,4 @@ classification_generation('val')
 classification_generation('test')
 
 
-# **********************************************************
-# Segmentation
-def segmentation_generation(split):
-    text_file = open('./output/cityscapes_segmentation_' + split + '.txt', 'w')
-    cities = os.listdir('../datasets/cityscapes/leftImg8bit/' + split + '/')
-    for city in cities:
-        files = os.listdir('../datasets/cityscapes/leftImg8bit/' + split + '/' + city + '/')
-        for file in files:
-            text_file.write('leftImg8bit/' + split + '/' + city + '/' + file + ' ')
-            text_file.write('gtFine/' + split + '/' + city + '/' + file.replace('leftImg8bit', 'gtFine_color') +'\n')
-    text_file.close()
 
-segmentation_generation('train')
-segmentation_generation('val')
-segmentation_generation('test')
