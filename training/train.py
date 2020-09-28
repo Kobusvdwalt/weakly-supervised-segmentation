@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath('../'))
 from metrics.f1 import f1
 from metrics.accuracy import accuracy
 from metrics.iou import iou
-from data.cityscapes import label_to_image
+from data.voc2012 import label_to_image
 
 from models.model_factory import Datasets, Models, get_model
 from models import model_factory
@@ -31,7 +31,7 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
         for phase in ['train', 'val']:
             if phase == 'train':
                 model.train()
-            else:
+            if phase == 'val':
                 if (epoch % 5 != 0):
                     break
                 model.eval()
@@ -43,11 +43,8 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
             for inputs, labels, names, meta in dataloaders[phase]:
                 batch_count += 1
 
-                # image_np = inputs[0].numpy()
-                # label_np = labels[0].numpy()
-                # print(names[0])
-                # cv2.imshow('image_np', image_np)
-                # cv2.imshow('label_np', label_to_image(label_np))
+                image_np = inputs[0].numpy()
+                label_np = labels[0].numpy()
 
                 inputs = inputs.permute(0, 3, 1, 2)
                 inputs = inputs.to(device).float()
@@ -57,9 +54,13 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
 
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
-                    # output_np = outputs[0].cpu().detach().numpy()
-                    # cv2.imshow('output_np', label_to_image(output_np))
-                    # cv2.waitKey(1)
+
+                    print(names[0])
+                    cv2.imshow('image_np', image_np)
+                    cv2.imshow('label_np', label_to_image(label_np))
+                    output_np = outputs[0].data.cpu().numpy()
+                    cv2.imshow('output_np', label_to_image(output_np))
+                    cv2.waitKey(100)
 
                     loss = criterion(outputs, labels)
 
@@ -101,11 +102,12 @@ def train(dataset = Datasets.cityscapes, loader_type=LoaderType.classification, 
 
     # Set up model
     model = get_model(dataset, model)
+    model.load()
     model.to(device)
 
     # Set up optimizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
     # Kick off training
     train_model(dataloaders, model, torch.nn.BCELoss(), optimizer, scheduler, epochs, metrics)

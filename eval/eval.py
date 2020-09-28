@@ -45,7 +45,7 @@ def evaluate_model(model, dataloader, output_name):
     with open('output/raw_' + output_name + '.txt', 'w') as outfile:
         json.dump(data, outfile, cls=NumpyEncoder)
 
-def evaluate(model_enum = Models.Vgg16GAP, dataset_enum = Datasets.voc2012, loader_split = LoaderSplit.val):
+def evaluate(model_enum = Models.Vgg16GAP, dataset_enum = Datasets.cityscapes, loader_split = LoaderSplit.val):
     # Set dataset
     dataset = get_loader(dataset_enum, LoaderType.classification, loader_split)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)

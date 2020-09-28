@@ -32,23 +32,7 @@ class_color_list = color_map()
 
 # Input : 3 dim tensor (x, y, class_count)
 # Output: RGB image (x, y, 3)
-def LabelToImage(label):
-    label[label > 0.2] = 1
-    label[label <= 0.2] = 0
-
-    image = np.zeros((label.shape[1], label.shape[2], 3))
-
-    mask_a = np.argmax(label, 0)
-    image[:, :, 0] = class_color_list[mask_a, 2] / 255
-    image[:, :, 1] = class_color_list[mask_a, 1] / 255
-    image[:, :, 2] = class_color_list[mask_a, 0] / 255
-
-    return image
-
 def label_to_image(label):
-    label[label > 0.2] = 1
-    label[label <= 0.2] = 0
-
     image = np.zeros((label.shape[1], label.shape[2], 3))
 
     mask_a = np.argmax(label, 0)

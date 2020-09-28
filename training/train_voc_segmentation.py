@@ -16,6 +16,6 @@ if __name__ == '__main__':
             'f1': f1,
             'iou': iou
         },
-        epochs=15,
+        epochs=100,
         batch_size=4,
     )

@@ -2,6 +2,12 @@
 cd C:\Users\Kobus\
 ssh -p443 -i details.pem ubuntu@ec2-13-244-167-52.af-south-1.compute.amazonaws.com
 
+:: # Connect to WITS cluster and keep alive
+ssh -o ServerAliveInterval=10 pjvanderwalt@146.141.21.100
+
+:: # Activate anaconda
+source anaconda3/bin/activate
+
 ::# Copy from WITS cluster to AWS proxy
 scp -r pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/ ~/
 ::# Copy from AWS proxy to machine
