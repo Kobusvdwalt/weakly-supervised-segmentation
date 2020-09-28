@@ -55,12 +55,12 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
 
-                    print(names[0])
-                    cv2.imshow('image_np', image_np)
-                    cv2.imshow('label_np', label_to_image(label_np))
-                    output_np = outputs[0].data.cpu().numpy()
-                    cv2.imshow('output_np', label_to_image(output_np))
-                    cv2.waitKey(100)
+                    # print(names[0])
+                    # cv2.imshow('image_np', image_np)
+                    # cv2.imshow('label_np', label_to_image(label_np))
+                    # output_np = outputs[0].data.cpu().numpy()
+                    # cv2.imshow('output_np', label_to_image(output_np))
+                    # cv2.waitKey(100)
 
                     loss = criterion(outputs, labels)
 
