@@ -102,12 +102,12 @@ def train(dataset = Datasets.cityscapes, loader_type=LoaderType.classification, 
 
     # Set up model
     model = get_model(dataset, model)
-    model.load()
+    # model.load()
     model.to(device)
 
     # Set up optimizer and scheduler
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
 
     # Kick off training
     train_model(dataloaders, model, torch.nn.BCELoss(), optimizer, scheduler, epochs, metrics)
