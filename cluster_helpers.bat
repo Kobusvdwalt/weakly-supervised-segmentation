@@ -8,6 +8,12 @@ ssh -o ServerAliveInterval=10 pjvanderwalt@146.141.21.100
 :: # Activate anaconda
 source anaconda3/bin/activate
 
+=== Running Commands Directly ===
+srun -N6 -p batch -l /bin/hostname
+srun -N2 -p biggpu -l cat /proc/cpuinfo | grep model
+srun -N4 -p ha -l /usr/bin/uptime
+sbatch --wrap="python train_voc_vgg11.py"
+
 ::# Copy from WITS cluster to AWS proxy
 scp -r pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/ ~/
 ::# Copy from AWS proxy to machine

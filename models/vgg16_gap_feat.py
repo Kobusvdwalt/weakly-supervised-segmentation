@@ -1,9 +1,6 @@
 import torchvision
 import torch
 import os
-import numpy as np
-import cv2
-
 class Vgg16GAP(torch.nn.Module):
     def __init__(self, name, outputs):
         super(Vgg16GAP, self).__init__()
