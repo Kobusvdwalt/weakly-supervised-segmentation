@@ -14,7 +14,7 @@ class Vgg16GAP(torch.nn.Module):
         # Unfreeze last conv layer
         total = 0
         count = 0
-        unfreeze = 0
+        unfreeze = 2
         for param in self.vgg.parameters():
             total += 1
         for param in self.vgg.parameters():
