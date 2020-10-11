@@ -80,7 +80,7 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
                 entry[metric_name] = metric_store[metric_name] / batch_count
             
             # Write logs
-            date_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+            date_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
             log['training_update'] = date_time
             log[phase].append(entry)
             with open('output/log__' + log_prefix + '__' + log['training_start'] + '.txt', 'w') as outfile:

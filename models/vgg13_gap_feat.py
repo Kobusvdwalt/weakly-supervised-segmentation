@@ -1,7 +1,6 @@
 import torchvision
 import torch
 import os
-
 class Vgg13GAP(torch.nn.Module):
     def __init__(self, name, outputs):
         super(Vgg13GAP, self).__init__()
