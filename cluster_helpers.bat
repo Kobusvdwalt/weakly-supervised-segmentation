@@ -12,8 +12,10 @@ source anaconda3/bin/activate
 srun -N6 -p batch -l /bin/hostname
 srun -N2 -p biggpu -l cat /proc/cpuinfo | grep model
 srun -N4 -p ha -l /usr/bin/uptime
-sbatch --job-name=vgg11 --partition=biggpu --wrap="python train_voc_vgg11.py"
-sbatch --job-name=vgg11 --partition=batch --wrap="python train_voc_vgg11.py" --output=vgg11-result.out
+
+sbatch --job-name=vgg11 --partition=batch --wrap="python train_voc_vgg11.py" --output=vgg11.out
+sbatch --job-name=vgg13 --partition=batch --wrap="python train_voc_vgg13.py" --output=vgg13.out
+sbatch --job-name=vgg16 --partition=batch --wrap="python train_voc_vgg16.py" --output=vgg16.out
 
 sbatch --job-name=vgg16u0 --partition=batch --wrap="python train_voc_vgg16_unfreeze_0.py" --output=vgg16u0.out
 sbatch --job-name=vgg16u1 --partition=batch --wrap="python train_voc_vgg16_unfreeze_1.py" --output=vgg16u1.out

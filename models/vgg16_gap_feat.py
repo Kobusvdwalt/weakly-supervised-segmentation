@@ -1,6 +1,8 @@
 import torchvision
 import torch
-import os
+import os, cv2
+import numpy as np
+
 class Vgg16GAP(torch.nn.Module):
     def __init__(self, name, outputs):
         super(Vgg16GAP, self).__init__()
@@ -29,6 +31,11 @@ class Vgg16GAP(torch.nn.Module):
         self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, x):
+        #input_np = x.clone().detach().cpu().numpy()
+        #input_np = np.moveaxis(input_np, 1, -1)        
+        #cv2.imshow('input', input_np[0])
+        #cv2.waitKey(0)
+
         x = self.vgg.features(x)
         x = self.conv(x)
         x = self.gap(x)

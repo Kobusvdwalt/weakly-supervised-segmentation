@@ -1,3 +1,4 @@
+from albumentations.augmentations.transforms import Blur, GridDropout, RandomBrightnessContrast
 from torch.utils.data import Dataset
 import numpy as np
 import cv2
@@ -11,11 +12,15 @@ def composeAugmentation(source, size=256):
     if source == 'train':
         augmentation = albumentations.Compose(
         [
-            albumentations.Rotate(5, always_apply=True),
+            # albumentations.Rotate(5, always_apply=True),
+            albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
+            albumentations.Blur(blur_limit=5),
             albumentations.LongestMaxSize(size, always_apply=True),
             albumentations.PadIfNeeded(size, size, cv2.BORDER_CONSTANT, 0),
+            albumentations.RandomBrightnessContrast(),
             albumentations.HorizontalFlip(),
-            albumentations.GaussNoise(),
+            # albumentations.CoarseDropout(max_height=32, max_width=32),
+            # albumentations.GaussNoise(),
             albumentations.Normalize(always_apply=True)
         ])
     else:
