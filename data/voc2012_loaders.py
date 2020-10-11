@@ -28,7 +28,7 @@ def composeAugmentation(source, size=256):
 
     return augmentation
 
-class PascalVOCClassificationMulticlass(Dataset):
+class PascalVOCClassification(Dataset):
     def __init__(self, source='train'):
         self.classList = class_list[1:]
         self.classCount = len(self.classList)
@@ -113,63 +113,50 @@ class PascalVOCSegmentation(Dataset):
         return (image, label, image_name, meta)
 
 
-# class PascalVOCClassificationBinary(Dataset):
-#     def __init__(self, source='train', target='aeroplane'):
-#         self.classList = class_list
-#         self.classCount = len(self.classList)
-        
-#         package_directory = os.path.dirname(os.path.abspath(__file__))
-#         path = os.path.join(package_directory, 'output', 'classification_binary_' + target + '_' + source + '.txt')
+class PascalVOCSelfsupervised(Dataset):
+    def __init__(self, source='train'):
+        self.classList = class_list[1:]
+        self.classCount = len(self.classList)
 
-#         f = open(path, 'r')
-#         self.labels = f.readlines()
-#         self.total = len(self.labels)
-#         self.labels_true = []
-#         self.labels_false = []
-        
-#         for sample in range(0, self.total-1):
-#             parts = self.labels[sample].replace('\n', '').split(' ')
-#             if (parts[1] == '1'):
-#                 self.labels_true.append(sample)
-#             else:
-#                 self.labels_false.append(sample)
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(package_directory, 'output', 'voc2012_classification_' + source + '.txt')
+        f = open(path, 'r')
+        self.labels = f.readlines()
+        self.total = len(self.labels)
+        self.source = source
 
-#         self.source = source
-#         self.augmentation = composeAugmentation(source)
-#     def __len__(self):
-#         return self.total
+        self.augmentation = composeAugmentation(source)
+    def __len__(self):
+        return self.total
 
-#     def __getitem__(self, idx):
-#         if (self.source == 'train'):
-#             if (random.randint(0, 100) > 50):
-#                 sample = self.labels_true[random.randint(0, len(self.labels_true)-1)]
-#             else:
-#                 sample = self.labels_false[random.randint(0, len(self.labels_false)-1)]
-#         else:
-#             sample = idx
+    def __getitem__(self, idx):
+        sample = idx
 
-#         parts = self.labels[sample].replace('\n', '').split(' ')
+        # Read images and perform augmentation
+        image_name = self.labels[sample].replace('\n', '').split(' ')[0]
 
-#         # Image
-#         image_name = parts[0]
-#         image = cv2.imread('../datasets/voc2012/JPEGImages/' + image_name + '.jpg')
+        image = cv2.imread('../datasets/voc2012/JPEGImages/' + image_name + '.jpg')
+        label = cv2.imread('../datasets/voc2012/JPEGImages/' + image_name + '.jpg')
 
-#         augmented = self.augmentation(image=image)
-#         image = augmented['image']
+        image_width = image.shape[1]
+        image_height = image.shape[0]
 
-#         # Label
-#         label = np.zeros(shape=(2))
+        transform = self.augmentation(image=image, mask=label)
+        image = transform['image']
+        label = transform['mask'] / 255.0
 
-#         if (parts[1] == '1'):
-#             label[0] = 1
-#             label[1] = 0
-#         else:
-#             label[0] = 0
-#             label[1] = 1
 
-#         # Label smoothing
-#         # https://arxiv.org/pdf/1906.02629.pdf
-#         label[label == 0] = 0.1
-#         label[label == 1] = 0.9
+        classification_label = np.ones(shape=(20)) * 0.9
+        classification_label_parts = self.labels[sample].replace('\n', '').split(' ')[1].split('|')
 
-#         return (image, label, image_name, 0, 0)
+        for word in self.classList:
+            if word not in classification_label_parts:
+                classification_label[self.classList.index(word)] = 0.1
+
+
+        # classification_label = classification_label[:, np.newaxis, np.newaxis]
+
+        meta = np.array([256, 256, image_width, image_height])
+
+        return (image, label, image_name, meta, classification_label)
+

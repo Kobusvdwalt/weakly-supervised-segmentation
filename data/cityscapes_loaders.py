@@ -109,3 +109,36 @@ class CityscapesSegmentation(Dataset):
         meta = np.array([256, 512, image_width, image_height])
 
         return (image, label, image_name, meta)
+
+class CityscapesSelfsupervised(Dataset):
+    def __init__(self, source='train'):
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(package_directory, 'output', 'cityscapes_segmentation_' + source + '.txt')
+        f = open(path, 'r')
+        self.labels = f.readlines()
+        self.total = len(self.labels)
+        self.source = source
+
+        self.augmentation = compose_augmentation(source)
+    def __len__(self):
+        return self.total
+
+    def __getitem__(self, idx):
+        sample = idx
+
+        # Read images and perform augmentation
+        image_name = self.labels[sample].replace('\n', '').split(' ')[0]
+        image = cv2.imread('../datasets/cityscapes/' + image_name)
+        label = cv2.imread('../datasets/cityscapes/' + image_name)
+
+        image_width = image.shape[1]
+        image_height = image.shape[0]
+
+        transform = self.augmentation(image=image, mask=label)
+        image = transform['image']
+        label = transform['mask'] / 255.0
+
+        meta = np.array([256, 256, image_width, image_height])
+
+        return (image, label, image_name, meta)
+

@@ -165,3 +165,25 @@ Upsacle using labels:
 0.2743026664130116
 
 Binary visualization :
+
+
+
+
+##################################
+SELF SUPERVISED augmentation
+##################################
+
+Thought about using self supervision and autoencoders somehow.
+The auto encoder is able to reconstruct a decent looking image with bottleneck of 20x32x32.
+The problem is that the autoencoder could just downscale the RGB channels and upscale them again.
+Another problem is that the autoencoder's latent representation is spread across the 20 channels of the bottleneck.
+
+One idea was to drop out the channels of the classes not present to force the autoencoder to use the correct channel for the 
+correct class. Disentanglement !!!. The issue is now that both the class of interest and the background class needs to be represented
+in one channel. There will be no way to get the segmentation of the class of interest.
+
+We can set up additional channels for background to go but now the decoder just focuesses on using those since they are more reliable
+than our class feature maps.
+
+Another idea is to add a classification loss to each of the channels with an Global Max Pooling layer of GAP.
+

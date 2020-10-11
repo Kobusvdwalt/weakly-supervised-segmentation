@@ -1,28 +1,32 @@
 import sys, os
+
+from torch.nn.modules.loss import BCELoss
 sys.path.insert(0, os.path.abspath('../'))
 
 from metrics.f1 import f1
-from metrics.accuracy import accuracy
-from metrics.iou import iou
-from data.voc2012 import label_to_image
-
-from models.model_factory import Datasets, Models, get_model
-from models import model_factory
 from torch.utils.data import DataLoader
-from data.loader_factory import get_loader, LoaderSplit, LoaderType
 from torch.optim import lr_scheduler
 from torchvision import datasets, models, transforms
 
 import torch
 import numpy as np
-import time
 import os
-import cv2
+import json
+from datetime import datetime
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs, metrics):
-    print('Training Start: ' + str(time.time()))
+def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs, metrics, log_prefix):
+    date_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+    log = {}
+    log['training_start'] = date_time
+    log['model_name'] = model.name
+    log['loss'] = str(criterion)
+    log['optimizer'] = str(optimizer)
+    log['train'] = []
+    log['val'] = []    
+
+    print('Training Start: ' + date_time)
 
     metric_best = 0.0
     for epoch in range(num_epochs):
@@ -43,9 +47,6 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
             for inputs, labels, names, meta in dataloaders[phase]:
                 batch_count += 1
 
-                image_np = inputs[0].numpy()
-                label_np = labels[0].numpy()
-
                 inputs = inputs.permute(0, 3, 1, 2)
                 inputs = inputs.to(device).float()
                 labels = labels.to(device).float()
@@ -55,17 +56,9 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
 
-                    # print(names[0])
-                    # cv2.imshow('image_np', image_np)
-                    # cv2.imshow('label_np', label_to_image(label_np))
-                    # output_np = outputs[0].data.cpu().numpy()
-                    # cv2.imshow('output_np', label_to_image(output_np))
-                    # cv2.waitKey(100)
-
                     loss = criterion(outputs, labels)
-
                     if phase == 'train':
-                        loss.backward()
+                        loss.backward(retain_graph=True)
                         optimizer.step()
 
                     # Record and store the metrics
@@ -81,28 +74,31 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
                 print('', end='\r')
             print('')
 
-            metric_epoch = metric_store[list(metric_store)[0]] / batch_count
+            entry = {}
+            entry['epoch'] = epoch
+            for metric_name in metric_store:
+                entry[metric_name] = metric_store[metric_name] / batch_count
+            
+            # Write logs
+            date_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+            log['training_update'] = date_time
+            log[phase].append(entry)
+            with open('output/log__' + log_prefix + '__' + log['training_start'] + '.txt', 'w') as outfile:
+                json.dump(log, outfile)
+
             if phase == 'train':
                 scheduler.step()
 
+            # Save model
+            metric_epoch = metric_store[list(metric_store)[0]] / batch_count
             if phase == 'val' and metric_epoch > metric_best:
                 metric_best = metric_epoch
                 model.save()
 
-def train(dataset = Datasets.cityscapes, loader_type=LoaderType.classification, model = Models.Unet, metrics = {'f1': f1}, epochs = 15, batch_size = 4, learning_rate = 1e-4):
-    # Set up datasets
-    dataset_train = get_loader(dataset, loader_type, LoaderSplit.train)
-    dataset_val = get_loader(dataset, loader_type, LoaderSplit.val)
+            
 
-    # Set up dataloaders
-    dataloaders = {
-        'train': DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=6),
-        'val': DataLoader(dataset_val, batch_size=batch_size, shuffle=False, num_workers=6)
-    }
-
+def train(model, dataloaders, metrics = {'f1': f1}, loss = torch.nn.BCELoss(), epochs = 15, learning_rate = 1e-4, log_prefix=''):
     # Set up model
-    model = get_model(dataset, model)
-    # model.load()
     model.to(device)
 
     # Set up optimizer and scheduler
@@ -110,4 +106,4 @@ def train(dataset = Datasets.cityscapes, loader_type=LoaderType.classification, 
     scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
 
     # Kick off training
-    train_model(dataloaders, model, torch.nn.BCELoss(), optimizer, scheduler, epochs, metrics)
+    train_model(dataloaders, model, loss, optimizer, scheduler, epochs, metrics, log_prefix)
