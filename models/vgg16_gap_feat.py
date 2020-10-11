@@ -4,7 +4,7 @@ import os
 class Vgg16GAP(torch.nn.Module):
     def __init__(self, name, outputs):
         super(Vgg16GAP, self).__init__()
-        self.name = name + '_vgg16_gap_unfreeze_0'
+        self.name = name + '_vgg16_gap'
         print(self.name)
         self.vgg = torchvision.models.vgg16(pretrained=True, progress=True)
         self.vgg.features = self.vgg.features[:-1]
@@ -19,7 +19,6 @@ class Vgg16GAP(torch.nn.Module):
             total += 1
         for param in self.vgg.parameters():
             if (count >= total-unfreeze*2):
-                print('layer unfrozen' + str(count))
                 param.requires_grad = True
             else:
                 param.requires_grad = False

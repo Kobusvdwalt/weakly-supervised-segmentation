@@ -12,7 +12,8 @@ source anaconda3/bin/activate
 srun -N6 -p batch -l /bin/hostname
 srun -N2 -p biggpu -l cat /proc/cpuinfo | grep model
 srun -N4 -p ha -l /usr/bin/uptime
-sbatch --wrap="python train_voc_vgg11.py"
+sbatch --job-name=vgg11 --partition=biggpu --wrap="python train_voc_vgg11.py"
+sbatch --job-name=vgg11 --partition=batch --wrap="python train_voc_vgg11.py" --output=vgg11-result.out
 
 ::# Copy from WITS cluster to AWS proxy
 scp -r pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/ ~/
