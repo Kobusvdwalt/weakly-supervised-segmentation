@@ -1,5 +1,6 @@
 
 import sys, os, torch
+from visualize.visualize_measure import measure
 from numpy.core.fromnumeric import shape
 import numpy as np
 import cv2
@@ -33,7 +34,7 @@ def visualize_model(model, dataloaders, folder_name, palette):
     target_layer = model.conv
 
     # Set up wrapped model
-    wrapped_model = GradCAM(model, target_layer)
+    wrapped_model = GradCAMpp(model, target_layer)
 
     for phase in dataloaders:
         folder_name += '_' + phase
@@ -93,8 +94,10 @@ def visualize_model(model, dataloaders, folder_name, palette):
 
             pil_image_p.save(folder_name  + '/' + image_name_np + '.png', 'PNG')
 
-            print('Image No: ' + str(image_count))
+            print('Image No: ' + str(image_count), end="\r")
             image_count += 1
+        print()
+        measure(folder_name)
 
 
 def visualize(model, dataloaders, palette):

@@ -17,7 +17,7 @@ from datetime import datetime
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs, metrics, log_prefix):
-    date_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+    date_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     log = {}
     log['training_start'] = date_time
     log['model_name'] = model.name
