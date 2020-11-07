@@ -1,17 +1,9 @@
-import sys, os
+import sys, os, json, torch
 
-from torch.nn.modules.loss import BCELoss
 sys.path.insert(0, os.path.abspath('../'))
 
 from metrics.f1 import f1
-from torch.utils.data import DataLoader
 from torch.optim import lr_scheduler
-from torchvision import datasets, models, transforms
-
-import torch
-import numpy as np
-import os
-import json
 from datetime import datetime
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -44,10 +36,10 @@ def train_model(dataloaders, model, criterion, optimizer, scheduler, num_epochs,
             metric_store = {}
             for metric_name in metrics:
                 metric_store[metric_name] = 0
-            for inputs, labels, names, meta in dataloaders[phase]:
+            for inputs, labels, data_package in dataloaders[phase]:
+
                 batch_count += 1
 
-                inputs = inputs.permute(0, 3, 1, 2)
                 inputs = inputs.to(device).float()
                 labels = labels.to(device).float()
 

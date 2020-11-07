@@ -8,7 +8,7 @@ if __name__ == '__main__':
     from data import voc2012
     from models.vgg16_gap_feat import Vgg16GAP
     
-    from data.voc2012_loaders import PascalVOCClassification
+    from data.voc2012_loader_classification import PascalVOCClassification
 
     # VGG16
     model = Vgg16GAP('voc_classification', voc2012.get_class_count() -1)
