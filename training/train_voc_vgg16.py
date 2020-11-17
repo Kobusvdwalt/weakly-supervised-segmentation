@@ -1,3 +1,4 @@
+
 if __name__ == '__main__':
     import sys, os
     sys.path.insert(0, os.path.abspath('../'))
@@ -6,6 +7,7 @@ if __name__ == '__main__':
     from training.train import train
     from metrics.f1 import f1
     from data import voc2012
+    import torch
     from models.vgg16_gap_feat import Vgg16GAP
     
     from data.voc2012_loader_classification import PascalVOCClassification
@@ -19,7 +21,12 @@ if __name__ == '__main__':
             'val': DataLoader(PascalVOCClassification('val'), batch_size=16, shuffle=False, num_workers=6)
         },
         metrics={
-            'f1': f1,
+            'classification': {
+                'f1': f1,
+            }
+        },
+        losses = {
+            'classification': torch.nn.BCELoss()
         },
         epochs=21,
         log_prefix='vgg_16'

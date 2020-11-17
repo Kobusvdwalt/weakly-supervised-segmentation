@@ -25,23 +25,49 @@ class Vgg16GAP(torch.nn.Module):
             else:
                 param.requires_grad = False
             count += 1
-        
+
+        # self.outputs = []
+        # def output_hook(module, input, output):
+        #     output_np = output[0].clone().detach().cpu().numpy()
+        #     self.outputs.append(output_np)
+
         self.conv = torch.nn.Conv2d(512, outputs, 1)
         self.gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.sigmoid = torch.nn.Sigmoid()
 
-    def forward(self, x):
-        #input_np = x.clone().detach().cpu().numpy()
-        #input_np = np.moveaxis(input_np, 1, -1)        
-        #cv2.imshow('input', input_np[0])
-        #cv2.waitKey(0)
+        # self.vgg.features[3].register_forward_hook(output_hook)
+        # self.vgg.features[8].register_forward_hook(output_hook)
+        # self.vgg.features[15].register_forward_hook(output_hook)
+        # self.vgg.features[22].register_forward_hook(output_hook)
+        # self.conv.register_forward_hook(output_hook)
+        
+
+    def forward(self, inputs):
+        x = inputs['image']
+        # input_np = x[0].clone().detach().cpu().numpy()
+        # input_np = np.moveaxis(input_np, 0, -1)
+
+        # cv2.imshow('input', input_np)
+        # cv2.waitKey(1)
 
         x = self.vgg.features(x)
         x = self.conv(x)
         x = self.gap(x)
         x = torch.flatten(x, 1)
         x = self.sigmoid(x)
-        return x
+
+        # for feat in self.outputs[0]:
+        #     cv2.imshow('feat', feat)
+        #     cv2.waitKey(1)
+
+
+        # self.outputs.clear()
+
+        outputs = {
+            'classification': x
+        }
+
+        return outputs
 
     def load(self):
         package_directory = os.path.dirname(os.path.abspath(__file__))

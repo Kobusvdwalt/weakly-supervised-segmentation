@@ -14,7 +14,7 @@ def double_conv(in_channels, out_channels):
     )
 
 
-class UNet(torch.nn.Module):
+class UNetBottleneck(torch.nn.Module):
     def __init__(self, name, outputs):
         super().__init__()
         self.name = name
@@ -30,13 +30,11 @@ class UNet(torch.nn.Module):
             param.requires_grad = False
 
         self.sigmoid = torch.nn.Sigmoid()
-        self.upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
-        
+        self.upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
         self.dconv_up3 = double_conv(512 + 512, 256)
         self.dconv_up2 = double_conv(256 + 256, 128)
         self.dconv_up1 = double_conv(128 + 128, 64)
-        self.conv_comb = torch.nn.Conv2d(64 + 64, 64, 3, padding=1)
-        self.conv_last = torch.nn.Conv2d(64, outputs, 1)
+        self.conv_1 = torch.nn.Conv2d(128, 3, 1)
 
         self.intermediate_outputs = []
         def output_hook(module, input, output):
@@ -47,16 +45,8 @@ class UNet(torch.nn.Module):
         self.vgg16.features[15].register_forward_hook(output_hook)
         self.vgg16.features[22].register_forward_hook(output_hook)
 
-        def back_hook(module, input, output):
-            label = output[0].clone().detach().cpu().numpy()
-            label = label[0]
-            label = label_to_image(label)
-
-            cv2.imshow('label', label)
-            cv2.waitKey(1)
-            
-        # self.conv_last.register_backward_hook(back_hook)
-        self.sigmoid.register_backward_hook(back_hook)
+        self.conv = torch.nn.Conv2d(512, outputs, 1)
+        self.gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         
     def forward(self, x):
@@ -78,25 +68,30 @@ class UNet(torch.nn.Module):
 
         x = self.upsample(x)
         x = torch.cat((x, self.intermediate_outputs[0]), dim=1)
-        x = self.conv_comb(x)
-        x = self.conv_last(x)
-        x = self.sigmoid(x)
 
+        x = self.conv_1(x)
+        
+        x = self.sigmoid(x)
         output = x.clone().detach().cpu().numpy()
 
+        x = self.vgg16.features(x)
+        x = self.conv(x)
+        x = self.gap(x)
+        x = torch.flatten(x, 1)
+        x = self.sigmoid(x)
+
         input = input[0]
-        input = np.moveaxis(input, 0, 2)
+        input = np.moveaxis(input, 0, -1)
 
         output = output[0]
-        output = label_to_image(output)
+        output = np.moveaxis(output, 0, -1)
 
         cv2.imshow('input', input)
         cv2.imshow('output', output)
         cv2.waitKey(1)
-
+        
         self.intermediate_outputs.clear()
-
-        return x # , classifier
+        return x
 
     def load(self):
         package_directory = os.path.dirname(os.path.abspath(__file__))

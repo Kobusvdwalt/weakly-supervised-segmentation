@@ -98,8 +98,13 @@ class PascalVOCClassification(Dataset):
         augmented = self.augmentation(image=image)
         image = augmented['image']
 
-        # Label
-        label = self.get_label_raw(idx)
+        inputs = {
+            'image': np.moveaxis(image, 2, 0)
+        }
+
+        labels = {
+            'classification': self.get_label_raw(idx)
+        }
 
         data_package = {
             'image_name': image_name,
@@ -109,6 +114,4 @@ class PascalVOCClassification(Dataset):
             'augmented_height': 256,
         }
 
-        image = np.moveaxis(image, 2, 0)
-
-        return (image, label, data_package)
+        return (inputs, labels, data_package)
