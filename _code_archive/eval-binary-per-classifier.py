@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.abspath('../'))
 
 from torch.utils.data import DataLoader
 from data.loaders import PascalVOCSegmentation
-from data.voc2012 import class_list, class_list_classification, LabelToImage, ImageToLabel, LabelToClasses, ClassesToWords, ThresholdClasses, AddBackgroundClass
+from data.voc2012 import class_list, class_list_classification, LabelToImage, image_to_label, LabelToClasses, ClassesToWords, ThresholdClasses, AddBackgroundClass
 
 from models.vgg_gap import Vgg16
 

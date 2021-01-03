@@ -59,7 +59,8 @@ class UNet(torch.nn.Module):
         self.sigmoid.register_backward_hook(back_hook)
 
         
-    def forward(self, x):
+    def forward(self, inputs):
+        x = inputs['image']
         input = x.clone().detach().cpu().numpy()
 
         x = self.vgg16.features(x)
@@ -96,7 +97,11 @@ class UNet(torch.nn.Module):
 
         self.intermediate_outputs.clear()
 
-        return x # , classifier
+        outputs = {
+            'segmentation': x
+        }
+
+        return outputs # , classifier
 
     def load(self):
         package_directory = os.path.dirname(os.path.abspath(__file__))

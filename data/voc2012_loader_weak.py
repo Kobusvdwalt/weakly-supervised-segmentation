@@ -3,7 +3,7 @@ import numpy as np
 import cv2, os
 import albumentations
 
-from data.voc2012 import ImageToLabel
+from data.voc2012 import image_to_label
 
 def composeAugmentation(source, size=256):
     if source == 'train':
@@ -61,7 +61,15 @@ class PascalVOCSegmentationWeak(Dataset):
         label = transform['mask']
 
         # Construct Label
-        label = ImageToLabel(label)
+        label = image_to_label(label)
+
+        inputs = {
+            'image': np.moveaxis(image, 2, 0)
+        }
+
+        labels = {
+            'label': label
+        }
 
         data_package = {
             'image_name': image_name,
@@ -71,6 +79,4 @@ class PascalVOCSegmentationWeak(Dataset):
             'augmented_height': 256,
         }
 
-        image = np.moveaxis(image, 2, 0)
-
-        return (image, label, data_package)
+        return (inputs, labels, data_package)

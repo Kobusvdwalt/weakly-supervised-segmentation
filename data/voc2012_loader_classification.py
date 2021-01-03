@@ -99,7 +99,8 @@ class PascalVOCClassification(Dataset):
         image = augmented['image']
 
         inputs = {
-            'image': np.moveaxis(image, 2, 0)
+            'image': np.moveaxis(image, 2, 0),
+            'label': self.get_label_raw(idx)
         }
 
         labels = {

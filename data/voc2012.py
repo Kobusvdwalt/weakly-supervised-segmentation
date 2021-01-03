@@ -44,7 +44,7 @@ def label_to_image(label):
 
 # Input : RGB image (x, y, 3)
 # Output: 3 dim tensor (x, y, class_count)
-def ImageToLabel(image):
+def image_to_label(image):
     label = np.zeros((class_count, image.shape[0], image.shape[1]))
     for i in range(0, class_count):
         feature = np.all(image == (class_color_list[i, 2], class_color_list[i, 1], class_color_list[i, 0]), axis=-1)
@@ -54,7 +54,7 @@ def ImageToLabel(image):
 
 # Input : RGB image (x, y, 3)
 # Output: 1 dim vector of (class_count)
-def ImageToClasses(image):
+def image_to_classes(image):
     classifcation_label = np.zeros(class_count)
     for i in range(0, class_count):
         feature = np.all(image == (class_color_list[i, 2], class_color_list[i, 1], class_color_list[i, 0]), axis=-1)
@@ -67,7 +67,7 @@ def ImageToClasses(image):
 
 # Input : 3 dim tensor (x, y, class_count)
 # Output: 1 dim vector of (class_count)
-def LabelToClasses(label):
+def label_to_classes(label):
     classifcation_label = np.zeros(class_count)
     for i in range(0, class_count):
         if np.sum(label[i]) > 0:
@@ -77,7 +77,7 @@ def LabelToClasses(label):
 
 # Input : One-hot encoded vector
 # Output: List of corresponding class descriptions
-def ClassesToWords(classes):
+def classes_to_words(classes):
     words = []
     for i in range(0, class_count):
         if (classes[i] == 1):

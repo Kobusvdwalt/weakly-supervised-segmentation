@@ -24,14 +24,12 @@ def move_to(obj, device):
   else:
     raise TypeError("Invalid type for move_to")
 
-def train_model(dataloaders, model, losses, optimizer, scheduler, num_epochs, metrics, log_prefix):
+def train_model(dataloaders, model, num_epochs, metrics, log_prefix):
     log = {}
     log['training_start'] = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     log['model_name'] = model.name
-    log['loss'] = str(losses)
-    log['optimizer'] = str(optimizer)
     log['train'] = []
-    log['val'] = []    
+    log['val'] = []
 
     print('Training Start: ' + log['training_start'])
 
@@ -49,11 +47,9 @@ def train_model(dataloaders, model, losses, optimizer, scheduler, num_epochs, me
 
             batch_count = 0
             metric_store = {}
-            print('metric setup')
             for output_key in metrics:
                 metric_store[output_key] = {}
                 for metric_name in metrics[output_key]:
-                    print(output_key + '_' + metric_name)
                     metric_store[output_key][metric_name] = 0
 
             for inputs_in, labels_in, data_package in dataloaders[phase]:
@@ -62,24 +58,9 @@ def train_model(dataloaders, model, losses, optimizer, scheduler, num_epochs, me
                 inputs = move_to(inputs_in, device)
                 labels = move_to(labels_in, device)
 
-                optimizer.zero_grad()
-
                 with torch.set_grad_enabled(phase == 'train'):
+                    # Model forward pass
                     outputs = model(inputs)
-
-                    # Apply losses
-                    for output_key in losses:
-                        loss_function = losses[output_key]
-                        output = outputs[output_key]
-                        label = labels[output_key]
-                        
-                        loss = loss_function(output, label)
-                        if phase == 'train':
-                            loss.backward(retain_graph=True)
-
-                    # Step optimizer
-                    if phase == 'train':
-                        optimizer.step()
 
                     # Record and store the metrics
                     for output_key in metrics:
@@ -110,27 +91,21 @@ def train_model(dataloaders, model, losses, optimizer, scheduler, num_epochs, me
             with open('output/log__' + log_prefix + '__' + log['training_start'] + '.txt', 'w') as outfile:
                 json.dump(log, outfile)
 
-            if phase == 'train':
-                scheduler.step()
-
             # Save model
+            model.save()
             # TODO: This can be done with a touch more elegance
-            output_key = list(metric_store.keys())[0]
-            metric_key = list(metric_store[output_key].keys())[0]
-            metric_epoch = metric_store[output_key][metric_key] / batch_count
-            if phase == 'val' and metric_epoch > metric_best:
-                metric_best = metric_epoch
-                model.save()
+            # output_key = list(metric_store.keys())[0]
+            # metric_key = list(metric_store[output_key].keys())[0]
+            # metric_epoch = metric_store[output_key][metric_key] / batch_count
+            # if phase == 'val' and metric_epoch > metric_best:
+            #     metric_best = metric_epoch
+            #     model.save()
 
             
 
-def train(model, dataloaders, metrics = {'f1': f1}, losses = {'classification': torch.nn.BCELoss()}, epochs = 15, learning_rate = 1e-4, log_prefix=''):
+def train(model, dataloaders, metrics = {'f1': f1}, epochs = 15, log_prefix=''):
     # Set up model
     model.to(device)
 
-    # Set up optimizer and scheduler
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.8)
-
     # Kick off training
-    train_model(dataloaders, model, losses, optimizer, scheduler, epochs, metrics, log_prefix)
+    train_model(dataloaders, model, epochs, metrics, log_prefix)

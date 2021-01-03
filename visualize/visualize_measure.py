@@ -2,7 +2,7 @@ import sys, os, json
 sys.path.insert(0, os.path.abspath('../'))
 
 from metrics.iou import iou
-from data.voc2012 import class_list, ImageToLabel, LabelToClasses
+from data.voc2012 import class_list, image_to_label, LabelToClasses
 
 import cv2
 import numpy as np

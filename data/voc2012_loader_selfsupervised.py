@@ -1,3 +1,4 @@
+from data.voc2012 import ClassesToWords
 from torch.utils.data import Dataset
 import numpy as np
 import cv2
@@ -50,6 +51,25 @@ class PascalVOCSelfsupervised(Dataset):
         # Get classification label
         classification_label = self.loader_classification.get_label_raw(idx)
 
+        # Debug image and label
+        # cv2.imshow('input', image)
+        # maxed = classification_label
+        # maxed[maxed > 0.5] = 1
+        # maxed[maxed < 0.5] = 0
+        # maxed = np.insert(maxed, 0, 0)
+        # words = ClassesToWords(maxed)
+        
+        # print(words)
+        # cv2.waitKey(0)
+
+        inputs = {
+            'image': np.moveaxis(image, 2, 0)
+        }
+
+        labels = {
+            # 'classification': classification_label,
+            'reconstruction': np.moveaxis(label, 2, 0)  
+        }
         data_package = {
             'image_name': image_name,
             'width': image_width,
@@ -59,7 +79,4 @@ class PascalVOCSelfsupervised(Dataset):
             'classification_label': classification_label
         }
 
-        image = np.moveaxis(image, 2, 0)
-        label = np.moveaxis(label, 2, 0)
-
-        return (image, label, data_package)
+        return (inputs, labels, data_package)

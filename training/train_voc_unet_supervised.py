@@ -1,5 +1,6 @@
+
 if __name__ == '__main__':
-    import sys, os
+    import sys, os, torch
     sys.path.insert(0, os.path.abspath('../'))
     
     from torch.utils.data.dataloader import DataLoader
@@ -19,7 +20,12 @@ if __name__ == '__main__':
             'val': DataLoader(PascalVOCSegmentation('val'), batch_size=4, shuffle=False, num_workers=6)
         },
         metrics={
-            'miou': iou,
+            'segmentation': {
+                'miou': iou,
+            }
+        },
+        losses = {
+            'segmentation': torch.nn.BCELoss()
         },
         epochs=21,
         log_prefix='unet_supervised'

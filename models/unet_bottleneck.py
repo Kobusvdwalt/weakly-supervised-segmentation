@@ -19,79 +19,130 @@ class UNetBottleneck(torch.nn.Module):
         super().__init__()
         self.name = name
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        vgg = torchvision.models.vgg16(pretrained=True, progress=True)
+        vgg.avgpool = None
+        vgg.classifier = None
+        vgg.features = vgg.features[:-1]
+        self.shared_features = vgg.features
+
+        # generator_vgg = torchvision.models.vgg16(pretrained=True, progress=True)
+        # generator_vgg.avgpool = None
+        # generator_vgg.classifier = None
+        # generator_vgg.features = generator_vgg.features[:-1]
+        # self.generator_features = generator_vgg.features
+        self.generator_upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        self.generator_bottle = torch.nn.Conv2d(512, 20, 1)
+        self.generator_dconv3 = double_conv(20, 256)
+        self.generator_dconv2 = double_conv(256, 128)
+        self.generator_dconv1 = double_conv(128, 64)
+        self.generator_dconv0 = torch.nn.Conv2d(64, 3, 1)
+        self.generator_sigmoid = torch.nn.Sigmoid()
+
+        # self.classifier_conv = torch.nn.Conv2d(512, 20, 1)
+        # self.classifier_gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        # self.classifier_sigmoid = torch.nn.Sigmoid()
+
+
+        # discriminator_vgg = torchvision.models.vgg16(pretrained=True, progress=True)
+        # discriminator_vgg.avgpool = None
+        # discriminator_vgg.classifier = None
+        # discriminator_vgg.features = discriminator_vgg.features[:-1]
+        # self.discriminator_features = discriminator_vgg.features
+        # self.discriminator_conv = torch.nn.Conv2d(512, 1, 1)
+        # self.discriminator_gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        # self.discriminator_sigmoid = torch.nn.Sigmoid()
+        # self.discriminator_loss = torch.nn.BCELoss()
+
+
+        # # Unfreeze last conv layer
+        # total = 0
+        # count = 0
+        # unfreeze = 2
+        # for param in self.vgg16.parameters():
+        #     total += 1
+        # for param in self.vgg16.parameters():
+        #     if (count >= total-unfreeze*2):
+        #         param.requires_grad = True
+        #     else:
+        #         param.requires_grad = False
+        #     count += 1
+
+    # def discriminate(self, inputs, labels):
+    #     discrimination = inputs['image']
+    #     discrimination = self.discriminator_features(discrimination)
+    #     discrimination = self.discriminator_conv(discrimination)
+    #     discrimination = self.discriminator_gap(discrimination)
+    #     discrimination = self.discriminator_sigmoid(discrimination)
+    #     return discrimination
+
+    # def classify(self, inputs):
+    #     classification = self.classifier_conv(inputs)
+    #     classification = self.classifier_gap(classification)
+    #     classification = torch.flatten(classification, 1)
+    #     classification = self.classifier_sigmoid(classification)
+    #     return classification
+
+    def generate(self, inputs):
+        #reconstruction = inputs['image']
+        #reconstruction = self.generator_features(reconstruction)
+
+        reconstruction = self.generator_bottle(inputs)
+
+        reconstruction = self.generator_upsample(reconstruction)
+        reconstruction = self.generator_dconv3(reconstruction)
+
+        reconstruction = self.generator_upsample(reconstruction)
+        reconstruction = self.generator_dconv2(reconstruction)
+
+        reconstruction = self.generator_upsample(reconstruction)
+        reconstruction = self.generator_dconv1(reconstruction)
+
+        reconstruction = self.generator_upsample(reconstruction)
+        reconstruction = self.generator_dconv0(reconstruction)
+
+        reconstruction = self.generator_sigmoid(reconstruction)
+        return reconstruction
         
-        self.vgg16 = torchvision.models.vgg16(pretrained=True, progress=True)
-        self.vgg16.features = self.vgg16.features[:-1]
-        self.vgg16.avgpool = None
-        self.vgg16.classifier = None
+    def forward(self, inputs):
+        original = inputs['image']
+        features = self.shared_features(original)
 
-        # Unfreeze all conv layers
-        for param in self.vgg16.parameters():
-            param.requires_grad = False
+        reconstruction = self.generate(features)
+        # classification = self.classify(features)
 
-        self.sigmoid = torch.nn.Sigmoid()
-        self.upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        self.dconv_up3 = double_conv(512 + 512, 256)
-        self.dconv_up2 = double_conv(256 + 256, 128)
-        self.dconv_up1 = double_conv(128 + 128, 64)
-        self.conv_1 = torch.nn.Conv2d(128, 3, 1)
+        # maxed_values, maxed_indices = torch.max(classification, 1)
+        # selected_weight = self.classifier_conv.weight[maxed_indices[0]]
 
-        self.intermediate_outputs = []
-        def output_hook(module, input, output):
-            self.intermediate_outputs.append(output)
+        # weighted_features = features * selected_weight
+        # weighted_reconstruction = self.generate(weighted_features)
 
-        self.vgg16.features[3].register_forward_hook(output_hook)
-        self.vgg16.features[8].register_forward_hook(output_hook)
-        self.vgg16.features[15].register_forward_hook(output_hook)
-        self.vgg16.features[22].register_forward_hook(output_hook)
+        # weighted_output = weighted_reconstruction.clone().detach().cpu().numpy()
+        # weighted_output = weighted_output[0]
+        # weighted_output = np.moveaxis(weighted_output, 0, -1)
+        # cv2.imshow('weighted_output', weighted_output)
 
-        self.conv = torch.nn.Conv2d(512, outputs, 1)
-        self.gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
-
-        
-    def forward(self, x):
-        input = x.clone().detach().cpu().numpy()
-
-        x = self.vgg16.features(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[3]), dim=1)
-        x = self.dconv_up3(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[2]), dim=1)
-        x = self.dconv_up2(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[1]), dim=1)
-        x = self.dconv_up1(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[0]), dim=1)
-
-        x = self.conv_1(x)
-        
-        x = self.sigmoid(x)
-        output = x.clone().detach().cpu().numpy()
-
-        x = self.vgg16.features(x)
-        x = self.conv(x)
-        x = self.gap(x)
-        x = torch.flatten(x, 1)
-        x = self.sigmoid(x)
-
+        input = original.clone().detach().cpu().numpy()
         input = input[0]
         input = np.moveaxis(input, 0, -1)
 
+        output = reconstruction.clone().detach().cpu().numpy()
         output = output[0]
         output = np.moveaxis(output, 0, -1)
 
+        
+
         cv2.imshow('input', input)
         cv2.imshow('output', output)
-        cv2.waitKey(1)
         
-        self.intermediate_outputs.clear()
-        return x
+        cv2.waitKey(1)
+
+        outputs = {
+            # 'classification': classification,
+            'reconstruction': reconstruction
+        }
+
+        return outputs
 
     def load(self):
         package_directory = os.path.dirname(os.path.abspath(__file__))
