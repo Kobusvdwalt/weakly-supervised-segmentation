@@ -87,8 +87,8 @@ class Transformer(torch.nn.Module):
         self.transformer_conv3_1 = torch.nn.Conv2d(128 + 256, 64, 3, padding=1)
         self.transformer_conv3_2 = torch.nn.Conv2d(64, 64, 3, padding=1)
 
-        self.transformer_conv4_1 = torch.nn.Conv2d(128 + 64, 32, 3, padding=1)
-        self.transformer_conv4_2 = torch.nn.Conv2d(32, 32, 3, padding=1)
+        self.transformer_conv4_1 = torch.nn.Conv2d(128 + 64, 64, 3, padding=1)
+        self.transformer_conv4_2 = torch.nn.Conv2d(64, 64, 3, padding=1)
 
         self.transformer_conv5 = torch.nn.Conv2d(64, 20, 1)
         self.transformer_gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
@@ -121,6 +121,11 @@ class Transformer(torch.nn.Module):
         self.transformer_conv3_2.weight.requires_grad = False
         self.transformer_conv3_2.bias.requires_grad = False
 
+        self.transformer_conv4_1.weight.requires_grad = False
+        self.transformer_conv4_1.bias.requires_grad = False
+        self.transformer_conv4_2.weight.requires_grad = False
+        self.transformer_conv4_2.bias.requires_grad = False
+
     def unfreeze(self):
         unfreeze_vgg_features(self.transformer_features)
         self.transformer_conv1.weight.requires_grad = True
@@ -135,6 +140,11 @@ class Transformer(torch.nn.Module):
         self.transformer_conv3_1.bias.requires_grad = True
         self.transformer_conv3_2.weight.requires_grad = True
         self.transformer_conv3_2.bias.requires_grad = True
+
+        self.transformer_conv4_1.weight.requires_grad = True
+        self.transformer_conv4_1.bias.requires_grad = True
+        self.transformer_conv4_2.weight.requires_grad = True
+        self.transformer_conv4_2.bias.requires_grad = True
 
     def apply_loss(self, classification, label):
         if self.transformer_loss_bce.requires_grad:
@@ -168,13 +178,12 @@ class Transformer(torch.nn.Module):
         transformer = self.transformer_conv3_2(transformer)
         transformer = self.transformer_relu(transformer)
         # 128
-        # transformer = self.transformer_upsample(transformer)
-        # transformer = torch.cat((transformer, self.intermediate_outputs[0]), dim=1)
-        # transformer = self.transformer_conv4_1(transformer)
-        # transformer = self.transformer_relu(transformer)
-        # transformer = self.transformer_conv4_2(transformer)
-        # transformer = self.transformer_relu(transformer)
-        # transformer = self.transformer_upsample(transformer)
+        transformer = self.transformer_upsample(transformer)
+        transformer = torch.cat((transformer, self.intermediate_outputs[0]), dim=1)
+        transformer = self.transformer_conv4_1(transformer)
+        transformer = self.transformer_relu(transformer)
+        transformer = self.transformer_conv4_2(transformer)
+        transformer = self.transformer_relu(transformer)
 
         transformer = self.transformer_conv5(transformer)
         transformer_sig = self.transformer_sigmoid(transformer)
@@ -188,11 +197,11 @@ class Transformer(torch.nn.Module):
         self.transformer_loss_bce = self.transformer_loss_func(transformer_pred, label)
 
         # transformer = self.transformer_upsample(transformer)
-        transformer = self.transformer_upsample(transformer)
+        # transformer = self.transformer_upsample(transformer)
         transformer = self.transformer_upsample(transformer)
         
         # transformer_sig = self.transformer_upsample(transformer_sig)
-        transformer_sig = self.transformer_upsample(transformer_sig)
+        # transformer_sig = self.transformer_upsample(transformer_sig)
         transformer_sig = self.transformer_upsample(transformer_sig)
 
         # 256

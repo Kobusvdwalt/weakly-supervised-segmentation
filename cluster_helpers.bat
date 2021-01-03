@@ -7,6 +7,7 @@ ssh -o ServerAliveInterval=10 pjvanderwalt@146.141.21.100
 
 :: # Activate anaconda
 source anaconda3/bin/activate
+conda activate pytorch
 
 :: # Running Commands Directly
 srun -N6 -p batch -l /bin/hostname
@@ -21,6 +22,10 @@ sbatch --job-name=vgg16u0 --partition=batch --wrap="python train_voc_vgg16_unfre
 sbatch --job-name=vgg16u1 --partition=batch --wrap="python train_voc_vgg16_unfreeze_1.py" --output=vgg16u1.out
 sbatch --job-name=vgg16u2 --partition=batch --wrap="python train_voc_vgg16_unfreeze_2.py" --output=vgg16u2.out
 sbatch --job-name=vgg16u3 --partition=batch --wrap="python train_voc_vgg16_unfreeze_3.py" --output=vgg16u3.out
+
+sbatch --job-name=wsgan --partition=biggpu --wrap="python train_voc_unet_adverserial.py" --output=wsgan.out
+
+::# biggpu
 
 ::# Copy from WITS cluster to AWS proxy
 scp -r pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/ ~/
