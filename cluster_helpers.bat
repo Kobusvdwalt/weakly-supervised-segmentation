@@ -23,13 +23,16 @@ sbatch --job-name=vgg16u1 --partition=batch --wrap="python train_voc_vgg16_unfre
 sbatch --job-name=vgg16u2 --partition=batch --wrap="python train_voc_vgg16_unfreeze_2.py" --output=vgg16u2.out
 sbatch --job-name=vgg16u3 --partition=batch --wrap="python train_voc_vgg16_unfreeze_3.py" --output=vgg16u3.out
 
+::# Train on biggpu
 sbatch --job-name=wsgan --partition=biggpu --wrap="python train_voc_unet_adverserial.py" --output=wsgan.out
 
-::# biggpu
+::# Copy from WITS cluster to machine
+scp -r pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/
 
 ::# Copy from WITS cluster to AWS proxy
 scp -r pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/ ~/
 scp -r pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/training/output/ ~/
+
 ::# Copy from AWS proxy to machine
 scp -P 443 -i details.pem -r ubuntu@ec2-13-244-167-52.af-south-1.compute.amazonaws.com:~/checkpoints /
 scp -P 443 -i details.pem -r ubuntu@ec2-13-244-167-52.af-south-1.compute.amazonaws.com:~/output /

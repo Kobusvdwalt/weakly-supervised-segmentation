@@ -21,11 +21,6 @@ if __name__ == '__main__':
             'train': DataLoader(PascalVOCClassification('train'), batch_size=4, shuffle=True, num_workers=4),
             'val': DataLoader(PascalVOCClassification('val'), batch_size=4, shuffle=False, num_workers=4)
         },
-        metrics={
-            'classification': {
-                'f1': f1,
-            },
-        },
         epochs=21,
         log_prefix='unet_adverserial'
     )

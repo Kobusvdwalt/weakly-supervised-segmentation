@@ -5,6 +5,10 @@ import torch, torchvision
 import os
 from data.voc2012 import label_to_image
 
+from models.model_base import ModelBase
+
+from metrics.iou import iou
+
 def double_conv(in_channels, out_channels):
     return torch.nn.Sequential(
         torch.nn.Conv2d(in_channels, out_channels, 3, padding=1),
@@ -14,20 +18,27 @@ def double_conv(in_channels, out_channels):
     )
 
 
-class UNet(torch.nn.Module):
-    def __init__(self, name, outputs):
-        super().__init__()
-        self.name = name
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+class UNet(ModelBase):
+    def __init__(self, **kwargs):
+        super(UNet, self).__init__(**kwargs)
         
         self.vgg16 = torchvision.models.vgg16(pretrained=True, progress=True)
         self.vgg16.features = self.vgg16.features[:-1]
         self.vgg16.avgpool = None
         self.vgg16.classifier = None
 
-        # Unfreeze all conv layers
+        # Unfreeze conv layers
+        total = 0
+        count = 0
+        unfreeze = 2
         for param in self.vgg16.parameters():
-            param.requires_grad = False
+            total += 1
+        for param in self.vgg16.parameters():
+            if (count >= total-unfreeze*2):
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+            count += 1
 
         self.sigmoid = torch.nn.Sigmoid()
         self.upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
@@ -36,7 +47,7 @@ class UNet(torch.nn.Module):
         self.dconv_up2 = double_conv(256 + 256, 128)
         self.dconv_up1 = double_conv(128 + 128, 64)
         self.conv_comb = torch.nn.Conv2d(64 + 64, 64, 3, padding=1)
-        self.conv_last = torch.nn.Conv2d(64, outputs, 1)
+        self.conv_last = torch.nn.Conv2d(64, kwargs['outputs'], 1)
 
         self.intermediate_outputs = []
         def output_hook(module, input, output):
@@ -47,18 +58,9 @@ class UNet(torch.nn.Module):
         self.vgg16.features[15].register_forward_hook(output_hook)
         self.vgg16.features[22].register_forward_hook(output_hook)
 
-        def back_hook(module, input, output):
-            label = output[0].clone().detach().cpu().numpy()
-            label = label[0]
-            label = label_to_image(label)
+        self.loss_function = torch.nn.BCELoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
-            cv2.imshow('label', label)
-            cv2.waitKey(1)
-            
-        # self.conv_last.register_backward_hook(back_hook)
-        self.sigmoid.register_backward_hook(back_hook)
-
-        
     def forward(self, inputs):
         x = inputs['image']
         input = x.clone().detach().cpu().numpy()
@@ -101,15 +103,32 @@ class UNet(torch.nn.Module):
             'segmentation': x
         }
 
-        return outputs # , classifier
+        return outputs
 
-    def load(self):
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
-        self.load_state_dict(torch.load(weight_path))
+    def backward(self, outputs, labels):
+        if self.training:
+            loss = self.loss_function(outputs['segmentation'], labels['segmentation'])
+            loss.backward()
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+    
+    def metrics(self, outputs, labels):
+        metrics = {
+            'segmentation': {
+                'miou': iou,
+            }
+        }
+        metrics_output = {}
+        for output_key in metrics:
+            metrics_output[output_key] = {}
+            for metric_name in metrics[output_key]:
+                metric_func = metrics[output_key][metric_name]
+                metric_result = metric_func(outputs[output_key].cpu().detach().numpy(), labels[output_key].cpu().detach().numpy())
+                metrics_output[output_key][metric_name] = metric_result
 
-    def save(self):
-        print('saving model')
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
-        torch.save(self.state_dict(), weight_path)
+        return metrics_output
+
+    def should_save(self, metrics_best, metrics_last):
+        metric_best = metrics_best['segmentation']['miou']
+        metric_last = metrics_last['segmentation']['miou']
+        return metric_best >= metric_last

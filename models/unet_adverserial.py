@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 import torch, torchvision
 import os
+from models.model_base import ModelBase
+from metrics.f1 import f1
 
 def unfreeze_vgg_features(vgg):
     total = 0
@@ -44,19 +46,21 @@ class Classifier(torch.nn.Module):
         self.classifier_loss = torch.nn.BCELoss()
         self.classifier_optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
-    def freeze(self):
-        freeze_vgg_features(self.classifier_features)
-        self.classifier_conv.weight.requires_grad = False
-        self.classifier_conv.bias.requires_grad = False
+    def train(self, mode = True):
+        super().train(mode)
+        if mode == False:
+            freeze_vgg_features(self.classifier_features)
+            self.classifier_conv.weight.requires_grad = False
+            self.classifier_conv.bias.requires_grad = False
 
-    def unfreeze(self):
-        unfreeze_vgg_features(self.classifier_features)
-        self.classifier_conv.weight.requires_grad = True
-        self.classifier_conv.bias.requires_grad = True
+        if mode == True:
+            unfreeze_vgg_features(self.classifier_features)
+            self.classifier_conv.weight.requires_grad = True
+            self.classifier_conv.bias.requires_grad = True
 
     def apply_loss(self, outputs, labels):
-        loss = self.classifier_loss(outputs, labels)
-        if loss.requires_grad:
+        if self.training:
+            loss = self.classifier_loss(outputs, labels)
             loss.backward(retain_graph=True)
             self.classifier_optimizer.step()
             self.classifier_optimizer.zero_grad()
@@ -90,7 +94,7 @@ class Transformer(torch.nn.Module):
         self.transformer_conv4_1 = torch.nn.Conv2d(128 + 64, 64, 3, padding=1)
         self.transformer_conv4_2 = torch.nn.Conv2d(64, 64, 3, padding=1)
 
-        self.transformer_conv5 = torch.nn.Conv2d(64, 20, 1)
+        self.transformer_conv5 = torch.nn.Conv2d(128, 20, 1)
         self.transformer_gap = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.transformer_gmp = torch.nn.AdaptiveMaxPool2d(output_size=(1, 1))
         self.transformer_relu = torch.nn.LeakyReLU(negative_slope=0.1, inplace=True)
@@ -106,54 +110,66 @@ class Transformer(torch.nn.Module):
         self.transformer_features[15].register_forward_hook(output_hook)
         self.transformer_features[22].register_forward_hook(output_hook)
 
-    def freeze(self):
-        freeze_vgg_features(self.transformer_features)
-        self.transformer_conv1.weight.requires_grad = False
-        self.transformer_conv1.bias.requires_grad = False
+    def train(self, mode=True):
+        super().train(mode)
+        if mode == False:
+            freeze_vgg_features(self.transformer_features)
+            self.transformer_conv1.weight.requires_grad = False
+            self.transformer_conv1.bias.requires_grad = False
 
-        self.transformer_conv2_1.weight.requires_grad = False
-        self.transformer_conv2_1.bias.requires_grad = False
-        self.transformer_conv2_2.weight.requires_grad = False
-        self.transformer_conv2_2.bias.requires_grad = False
+            self.transformer_conv2_1.weight.requires_grad = False
+            self.transformer_conv2_1.bias.requires_grad = False
+            self.transformer_conv2_2.weight.requires_grad = False
+            self.transformer_conv2_2.bias.requires_grad = False
 
-        self.transformer_conv3_1.weight.requires_grad = False
-        self.transformer_conv3_1.bias.requires_grad = False
-        self.transformer_conv3_2.weight.requires_grad = False
-        self.transformer_conv3_2.bias.requires_grad = False
+            self.transformer_conv3_1.weight.requires_grad = False
+            self.transformer_conv3_1.bias.requires_grad = False
+            self.transformer_conv3_2.weight.requires_grad = False
+            self.transformer_conv3_2.bias.requires_grad = False
 
-        self.transformer_conv4_1.weight.requires_grad = False
-        self.transformer_conv4_1.bias.requires_grad = False
-        self.transformer_conv4_2.weight.requires_grad = False
-        self.transformer_conv4_2.bias.requires_grad = False
+            self.transformer_conv4_1.weight.requires_grad = False
+            self.transformer_conv4_1.bias.requires_grad = False
+            self.transformer_conv4_2.weight.requires_grad = False
+            self.transformer_conv4_2.bias.requires_grad = False
 
-    def unfreeze(self):
-        unfreeze_vgg_features(self.transformer_features)
-        self.transformer_conv1.weight.requires_grad = True
-        self.transformer_conv1.bias.requires_grad = True
+            self.transformer_conv5.weight.requires_grad = False
+            self.transformer_conv5.bias.requires_grad = False
 
-        self.transformer_conv2_1.weight.requires_grad = True
-        self.transformer_conv2_1.bias.requires_grad = True
-        self.transformer_conv2_2.weight.requires_grad = True
-        self.transformer_conv2_2.bias.requires_grad = True
+            # print("\neval\n")
+            
+        if mode == True:
+            unfreeze_vgg_features(self.transformer_features)
+            self.transformer_conv1.weight.requires_grad = True
+            self.transformer_conv1.bias.requires_grad = True
 
-        self.transformer_conv3_1.weight.requires_grad = True
-        self.transformer_conv3_1.bias.requires_grad = True
-        self.transformer_conv3_2.weight.requires_grad = True
-        self.transformer_conv3_2.bias.requires_grad = True
+            self.transformer_conv2_1.weight.requires_grad = True
+            self.transformer_conv2_1.bias.requires_grad = True
+            self.transformer_conv2_2.weight.requires_grad = True
+            self.transformer_conv2_2.bias.requires_grad = True
 
-        self.transformer_conv4_1.weight.requires_grad = True
-        self.transformer_conv4_1.bias.requires_grad = True
-        self.transformer_conv4_2.weight.requires_grad = True
-        self.transformer_conv4_2.bias.requires_grad = True
+            self.transformer_conv3_1.weight.requires_grad = True
+            self.transformer_conv3_1.bias.requires_grad = True
+            self.transformer_conv3_2.weight.requires_grad = True
+            self.transformer_conv3_2.bias.requires_grad = True
+
+            self.transformer_conv4_1.weight.requires_grad = True
+            self.transformer_conv4_1.bias.requires_grad = True
+            self.transformer_conv4_2.weight.requires_grad = True
+            self.transformer_conv4_2.bias.requires_grad = True
+
+            self.transformer_conv5.weight.requires_grad = True
+            self.transformer_conv5.bias.requires_grad = True
+
+            # print("\ntrain\n")
 
     def apply_loss(self, classification, label):
-        if self.transformer_loss_bce.requires_grad:
+        if self.training:
             # Attention Mining Loss. Mean of output of each class probability in image
             attention_mining_loss = torch.mean(classification[label>0.5])
-            attention_mining_loss.backward(retain_graph=True)
 
+            attention_mining_loss.backward(retain_graph=True)
             self.transformer_loss_bce.backward(retain_graph=True)
-            self.transformer_loss_reg.backward(retain_graph=True)
+            # self.transformer_loss_reg.backward(retain_graph=True)
             self.transformer_optimizer.step()
             self.transformer_optimizer.zero_grad()
     
@@ -170,39 +186,40 @@ class Transformer(torch.nn.Module):
         transformer = self.transformer_conv2_2(transformer)
         transformer = self.transformer_relu(transformer)
         
-        # 64
-        transformer = self.transformer_upsample(transformer)
-        transformer = torch.cat((transformer, self.intermediate_outputs[1]), dim=1)
-        transformer = self.transformer_conv3_1(transformer)
-        transformer = self.transformer_relu(transformer)
-        transformer = self.transformer_conv3_2(transformer)
-        transformer = self.transformer_relu(transformer)
-        # 128
-        transformer = self.transformer_upsample(transformer)
-        transformer = torch.cat((transformer, self.intermediate_outputs[0]), dim=1)
-        transformer = self.transformer_conv4_1(transformer)
-        transformer = self.transformer_relu(transformer)
-        transformer = self.transformer_conv4_2(transformer)
-        transformer = self.transformer_relu(transformer)
+        # # 64
+        # transformer = self.transformer_upsample(transformer)
+        # transformer = torch.cat((transformer, self.intermediate_outputs[1]), dim=1)
+        # transformer = self.transformer_conv3_1(transformer)
+        # transformer = self.transformer_relu(transformer)
+        # transformer = self.transformer_conv3_2(transformer)
+        # transformer = self.transformer_relu(transformer)
+        # # 128
+        # transformer = self.transformer_upsample(transformer)
+        # transformer = torch.cat((transformer, self.intermediate_outputs[0]), dim=1)
+        # transformer = self.transformer_conv4_1(transformer)
+        # transformer = self.transformer_relu(transformer)
+        # transformer = self.transformer_conv4_2(transformer)
+        # transformer = self.transformer_relu(transformer)
 
         transformer = self.transformer_conv5(transformer)
-        transformer_sig = self.transformer_sigmoid(transformer)
+        transformer = self.transformer_sigmoid(transformer)
 
         dropout = torch.rand(transformer.shape, device = self.device)
-        
-        transformer = transformer_sig * dropout
 
-        transformer_pred_avg = self.transformer_gmp(transformer)
-        transformer_pred = torch.flatten(transformer_pred_avg, 1)
+        transformer_clean = transformer.clone()
+        transformer_noise = transformer.clone() * dropout
+        
+        transformer_pred = self.transformer_gmp(transformer_noise)
+        transformer_pred = torch.flatten(transformer_pred, 1)
         self.transformer_loss_bce = self.transformer_loss_func(transformer_pred, label)
 
-        # transformer = self.transformer_upsample(transformer)
-        # transformer = self.transformer_upsample(transformer)
-        transformer = self.transformer_upsample(transformer)
+        transformer_noise = self.transformer_upsample(transformer_noise)
+        transformer_noise = self.transformer_upsample(transformer_noise)
+        transformer_noise = self.transformer_upsample(transformer_noise)
         
-        # transformer_sig = self.transformer_upsample(transformer_sig)
-        # transformer_sig = self.transformer_upsample(transformer_sig)
-        transformer_sig = self.transformer_upsample(transformer_sig)
+        transformer_clean = self.transformer_upsample(transformer_clean)
+        transformer_clean = self.transformer_upsample(transformer_clean)
+        transformer_clean = self.transformer_upsample(transformer_clean)
 
         # 256
         # cv2.imshow('t_aeroplane', transformer_sig[0, 0].clone().detach().cpu().numpy())
@@ -211,8 +228,7 @@ class Transformer(torch.nn.Module):
         # cv2.imshow('t_boat', transformer_sig[0, 3].clone().detach().cpu().numpy())
         # cv2.imshow('t_person', transformer_sig[0, 14].clone().detach().cpu().numpy())
         # cv2.imshow('t_dog', transformer_sig[0, 7].clone().detach().cpu().numpy())
-
-        return transformer, transformer_sig
+        return transformer_noise, transformer_clean
 
     def build_label(self, transformer, label):
         transformer_vis = transformer[0].clone().detach().cpu().numpy()
@@ -235,80 +251,127 @@ class Transformer(torch.nn.Module):
         return label_vis
 
 
-    def forward(self, image, label):
-        transformer, transformer_clean = self.segment(image, label)
+    def forward(self, images, labels):
+        transformer_noise, transformer_clean = self.segment(images, labels)
         
-        # label_vis = self.build_label(transformer_clean, label)
-        # cv2.imshow('label_vis', label_vis)
+        label_vis = self.build_label(transformer_clean, labels)
+        cv2.imshow('label_vis', label_vis)
 
-        transformed = image.clone()
+        transformed = images.clone()
         for batch_index in range(0, transformed.shape[0]):
             # Get activations from label
-            activations = transformer[batch_index, label[batch_index] > 0.5]
+            activations = transformer_noise[batch_index, labels[batch_index] > 0.5]
             # Combine activations by max
             activation, _indices = torch.max(activations, 0)
             # Erase the image
-            transformed[batch_index] = image[batch_index] * (1 - activation) * 0.5 + activation * 0.5
+            transformed[batch_index] = images[batch_index] * (1 - activation) * 0.5 + activation * 0.5
             
             # Show erase mask for debugging
-            # if batch_index == 0:
-            #    activation_show = activation.clone().detach().cpu().numpy()
-            #    cv2.imshow('t_comb', activation_show)
+            if batch_index == 0:
+               activation_show = activation.clone().detach().cpu().numpy()
+               cv2.imshow('t_comb', activation_show)
         
-        self.transformer_loss_reg = torch.mean(transformed) * 0.1
+        # self.transformer_loss_reg = torch.mean(transformed) * 0.1
 
         # Show erased image for debugging
-        # erased_input_vis = transformed[0].clone().detach().cpu().numpy()
-        # erased_input_vis = np.moveaxis(erased_input_vis, 0, -1)
-        # cv2.imshow('erased_input_vis', erased_input_vis)
-        # cv2.waitKey(1)
+        erased_input_vis = transformed[0].clone().detach().cpu().numpy()
+        erased_input_vis = np.moveaxis(erased_input_vis, 0, -1)
+        cv2.imshow('erased_input_vis', erased_input_vis)
+        cv2.waitKey(1)
 
         return transformed
 
-class UNetAdverserial(torch.nn.Module):
+class UNetAdverserial(ModelBase):
     def __init__(self, name):
         super().__init__()
         self.name = name
+        self.step = -1
         self.step_count = 0
 
         self.classifier = Classifier()
         self.transformer = Transformer()
 
+    def epoch_start(self):
+        self.step = -1
+        self.step_count = 0
+        self.classifier.train(False)
+        self.transformer.train(False)
+
     def forward(self, inputs):
+        # Adverserial training controller
+        if self.training:
+            self.step_count += 1
+            if self.step != (self.step_count // 50) % 2:
+                self.step = (self.step_count // 50) % 2
+
+                # Train classifier
+                if self.step == 0:
+                    self.classifier.train(True)
+                    self.transformer.train(False)
+                # Train transformer
+                else:
+                    self.classifier.train(False)
+                    self.transformer.train(True)
+
+        # Actual forward pass
         image = inputs['image']
         label = inputs['label']
-        
-        self.step_count += 1
-        step = (self.step_count // 50) % 2
 
-        # Train classifier
-        if step == 0:
-            self.classifier.unfreeze()
-            self.transformer.freeze()
-            transformation = self.transformer(image, label)
-            classification = self.classifier(transformation)
-            self.classifier.apply_loss(classification, label)
-        # Train transformer
-        else:
-            self.classifier.freeze()
-            self.transformer.unfreeze()
-            transformation = self.transformer(image, label)
-            classification = self.classifier(transformation)
-            self.transformer.apply_loss(classification, label)
+        self.transformation = self.transformer(image, label)
+        self.classification = self.classifier(self.transformation)
 
         outputs = {
-            'classification': classification,
+            'classification': self.classification,
         }
 
         return outputs
 
-    def load(self):
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
-        self.load_state_dict(torch.load(weight_path))
+    def backward(self, outputs, labels):
+        if self.training:
+            self.transformer.apply_loss(self.classification, labels['classification'])
+            self.classifier.apply_loss(self.classification, labels['classification'])
 
-    def save(self):
-        print('saving model')
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
-        torch.save(self.state_dict(), weight_path)
+    def segment(self, images, class_labels):
+        x_noise, x_clean = self.transformer.segment(images, class_labels)
+
+        # Build label
+        result = np.zeros((images.shape[0], images.shape[2], images.shape[3], 3))
+
+        for batch_index in range(0, images.shape[0]):
+            features = x_clean[batch_index].clone().detach().cpu().numpy()
+            label = np.zeros((features.shape[0]+1, features.shape[1], features.shape[2]))
+
+            # Copy masks based on classification label
+            for feature_index in range(0, features.shape[0]):
+                if class_labels[batch_index, feature_index] > 0.5:
+                    label[feature_index+1] = features[feature_index]
+
+
+            # Compute background mask
+            summed = np.mean(features, 0)
+            summed[summed > 1] = 1
+            summed[summed < 0] = 0
+            label[0] = (1 - summed) * 0.5
+
+            result[batch_index] = label_to_image(label)
+
+        return result
+            
+    def metrics(self, outputs, labels):
+        metrics = {
+            'classification': {
+                'f1': f1,
+            }
+        }
+        metrics_output = {}
+        for output_key in metrics:
+            metrics_output[output_key] = {}
+            for metric_name in metrics[output_key]:
+                metric_func = metrics[output_key][metric_name]
+                metric_result = metric_func(outputs[output_key].cpu().detach().numpy(), labels[output_key].cpu().detach().numpy())
+                metrics_output[output_key][metric_name] = metric_result
+
+        return metrics_output
+
+    def should_save(self, metrics_best, metrics_last):
+        return True

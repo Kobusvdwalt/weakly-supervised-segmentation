@@ -2,7 +2,7 @@ import sys, os, json
 sys.path.insert(0, os.path.abspath('../'))
 
 from metrics.iou import iou
-from data.voc2012 import class_list, image_to_label, LabelToClasses
+from data.voc2012 import class_list, image_to_label, label_to_classes
 
 import cv2
 import numpy as np
@@ -17,10 +17,10 @@ def measure(target):
         labelImage = cv2.imread('../datasets/voc2012/SegmentationClass/' + filename)
         outputImage = cv2.imread(target + '/' + filename)
         
-        label = ImageToLabel(labelImage)
-        output = ImageToLabel(outputImage)
+        label = image_to_label(labelImage)
+        output = image_to_label(outputImage)
         
-        finalCount += LabelToClasses(label)
+        finalCount += label_to_classes(label)
 
         for i in range(0, 21):
             final[i] += iou(output[i], label[i])
@@ -36,3 +36,6 @@ def measure(target):
 
     with open(target + '/measurements.txt', 'w') as outfile:
         json.dump(measurements, outfile)
+
+folder_name = 'output/unet_adverserial'
+measure(folder_name)
