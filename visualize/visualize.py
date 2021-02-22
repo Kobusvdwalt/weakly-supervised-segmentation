@@ -1,3 +1,4 @@
+
 import shutil
 import sys, os, json, torch, cv2
 import numpy as np
@@ -7,8 +8,8 @@ sys.path.insert(0, os.path.abspath('../'))
 from torch.utils.data.dataloader import DataLoader
 from data.voc2012_loader_segmentation import PascalVOCSegmentation
 from data.voc2012 import label_to_image
-from models.vgg16_gap_feat import Vgg16GAP
-from models.unet_adverserial import UNetAdverserial
+from models.unet import UNet
+from models.deeplab101 import DeepLab101
 from training.helpers import move_to
 
 # Helper function for movement
@@ -66,9 +67,28 @@ def visualize(model, dataloader):
 
 
 
-dataloader = DataLoader(PascalVOCSegmentation('val'), batch_size=4, shuffle=False, num_workers=0)
+dataloader = DataLoader(PascalVOCSegmentation('val'), batch_size=2, shuffle=False, num_workers=0)
 
-model = UNetAdverserial(name='unet_adverserial')
-model.load()
+# Unet
+# model = UNet(outputs=21, name='voc_unet')
+# model.load()
+# visualize(model, dataloader)
 
-visualize(model, dataloader)
+# Deeplab101
+# model = DeepLab101(outputs=21, name='deeplab_101')
+# model.eval()
+# visualize(model, dataloader)
+
+print(len(
+['__background__', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
+ 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
+ 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']))
+
+
+
+# VGG16 CAM
+
+# WASS
+# model = UNet(outputs=21, name='voc_wass')
+# model.load()
+# visualize(model, dataloader)

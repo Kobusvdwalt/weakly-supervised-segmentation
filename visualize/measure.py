@@ -37,5 +37,5 @@ def measure(target):
     with open(target + '/measurements.txt', 'w') as outfile:
         json.dump(measurements, outfile)
 
-folder_name = 'output/unet_adverserial'
+folder_name = 'output/voc_deeplab101'
 measure(folder_name)

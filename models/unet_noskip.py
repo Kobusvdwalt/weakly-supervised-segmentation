@@ -7,7 +7,7 @@ from data.voc2012 import label_to_image
 
 from models.model_base import ModelBase
 
-from metrics.iou import iou
+from metrics.accuracy import accuracy
 
 def double_conv(in_channels, out_channels):
     return torch.nn.Sequential(
@@ -18,9 +18,9 @@ def double_conv(in_channels, out_channels):
     )
 
 
-class UNet(ModelBase):
+class UNetNoSkip(ModelBase):
     def __init__(self, **kwargs):
-        super(UNet, self).__init__(**kwargs)
+        super(UNetNoSkip, self).__init__(**kwargs)
         
         self.vgg16 = torchvision.models.vgg16(pretrained=True, progress=True)
         self.vgg16.features = self.vgg16.features[:-1]
@@ -43,22 +43,19 @@ class UNet(ModelBase):
         self.sigmoid = torch.nn.Sigmoid()
         self.upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
         
-        self.dconv_up3 = double_conv(512 + 512, 256)
-        self.dconv_up2 = double_conv(256 + 256, 128)
-        self.dconv_up1 = double_conv(128 + 128, 64)
-        self.conv_comb = torch.nn.Conv2d(64 + 64, 64, 3, padding=1)
-        self.conv_last = torch.nn.Conv2d(64, kwargs['outputs'], 1)
+        self.dconv_up3 = double_conv(512, 256)
+        self.dconv_up2 = double_conv(256, 128)
+        self.dconv_up1 = double_conv(128, 64)
+        self.conv_comb = torch.nn.Conv2d(64, 20, 3, padding=1)
+        self.conv_comb1 = torch.nn.Conv2d(20, 16, 3, padding=1)
+        self.conv_comb2 = torch.nn.Conv2d(16, 16, 3, padding=1)
+        self.conv_comb3 = torch.nn.Conv2d(16, 16, 3, padding=1)
+        self.conv_last = torch.nn.Conv2d(16, kwargs['outputs'], 1)
 
-        self.intermediate_outputs = []
-        def output_hook(module, input, output):
-            self.intermediate_outputs.append(output)
+        self.gmp = torch.nn.AdaptiveMaxPool2d(output_size=(1, 1))
+        self.loss_bce_func = torch.nn.BCELoss()
 
-        self.vgg16.features[3].register_forward_hook(output_hook)
-        self.vgg16.features[8].register_forward_hook(output_hook)
-        self.vgg16.features[15].register_forward_hook(output_hook)
-        self.vgg16.features[22].register_forward_hook(output_hook)
-
-        self.loss_function = torch.nn.BCELoss()
+        self.loss_function = torch.nn.MSELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
     def forward(self, inputs):
@@ -68,54 +65,68 @@ class UNet(ModelBase):
         x = self.vgg16.features(x)
 
         x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[3]), dim=1)
         x = self.dconv_up3(x)
 
         x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[2]), dim=1)
         x = self.dconv_up2(x)
 
         x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[1]), dim=1)
         x = self.dconv_up1(x)
 
         x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[0]), dim=1)
         x = self.conv_comb(x)
+        x = self.sigmoid(x)
+
+        comb = self.gmp(x)
+        comb = torch.flatten(comb, 1)
+        self.loss_bce = self.loss_bce_func(comb, inputs['classification'])
+
+        comb = x.clone().detach().cpu().numpy()
+        comb = comb[0]
+        cv2.imshow('comb0', comb[0])
+        cv2.imshow('comb1', comb[1])
+        cv2.imshow('comb2', comb[2])
+        cv2.imshow('comb3', comb[3])
+        cv2.imshow('comb4', comb[4])
+        cv2.imshow('comb5', comb[5])
+
+        
+        x = self.conv_comb1(x)
+        x = self.conv_comb2(x)
+        x = self.conv_comb3(x)
+
         x = self.conv_last(x)
         x = self.sigmoid(x)
 
-        output = x.clone().detach().cpu().numpy()
-
         input = input[0]
         input = np.moveaxis(input, 0, 2)
-
+        
+        output = x.clone().detach().cpu().numpy()
         output = output[0]
-        output = label_to_image(output)
+        output = np.moveaxis(output, 0, 2)
 
         cv2.imshow('input', input)
         cv2.imshow('output', output)
         cv2.waitKey(1)
 
-        self.intermediate_outputs.clear()
-
         outputs = {
-            'segmentation': x
+            'reconstruction': x
         }
 
         return outputs
 
     def backward(self, outputs, labels):
         if self.training:
-            loss = self.loss_function(outputs['segmentation'], labels['segmentation'])
-            loss.backward()
+            loss = self.loss_function(outputs['reconstruction'], labels['reconstruction'])
+            loss.backward(retain_graph=True)
+            self.loss_bce.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
     
     def metrics(self, outputs, labels):
         metrics = {
-            'segmentation': {
-                'miou': iou,
+            'reconstruction': {
+                'accuracy': accuracy,
             }
         }
         metrics_output = {}
@@ -129,39 +140,9 @@ class UNet(ModelBase):
         return metrics_output
 
     def should_save(self, metrics_best, metrics_last):
-        metric_best = metrics_best['segmentation']['miou']
-        metric_last = metrics_last['segmentation']['miou']
+        metric_best = metrics_best['reconstruction']['accuracy']
+        metric_last = metrics_last['reconstruction']['accuracy']
         return metric_last >= metric_best
 
     def segment(self, images, class_labels):
-        x = images
-        x = self.vgg16.features(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[3]), dim=1)
-        x = self.dconv_up3(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[2]), dim=1)
-        x = self.dconv_up2(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[1]), dim=1)
-        x = self.dconv_up1(x)
-
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[0]), dim=1)
-        x = self.conv_comb(x)
-        x = self.conv_last(x)
-        x = self.sigmoid(x)
-
-        # Build label
-        result = np.zeros((images.shape[0], images.shape[2], images.shape[3], 3))
-
-        for batch_index in range(0, images.shape[0]):
-            output = x.clone().detach().cpu().numpy()
-            result[batch_index] = label_to_image(output[batch_index])
-
-        self.intermediate_outputs.clear()
-
-        return result
+        return 0

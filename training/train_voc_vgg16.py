@@ -5,12 +5,12 @@ if __name__ == '__main__':
     
     from torch.utils.data.dataloader import DataLoader
     from training.train import train
-    from models.vgg16_gap_feat import Vgg16GAP
+    from models.vgg16 import Vgg16GAP
     
     from data.voc2012_loader_classification import PascalVOCClassification
 
     # VGG16
-    model = Vgg16GAP(name='voc_classification')
+    model = Vgg16GAP(name='voc_vgg16')
     train(
         model=model,
         dataloaders = {
@@ -18,6 +18,5 @@ if __name__ == '__main__':
             'val': DataLoader(PascalVOCClassification('val'), batch_size=16, shuffle=False, num_workers=6)
         },
         epochs=21,
-        log_prefix='vgg_16'
+        log_prefix='voc_vgg16'
     )
-

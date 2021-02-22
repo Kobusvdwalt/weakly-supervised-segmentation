@@ -207,7 +207,7 @@ class Transformer(torch.nn.Module):
         dropout = torch.rand(transformer.shape, device = self.device)
 
         transformer_clean = transformer.clone()
-        transformer_noise = transformer.clone() * dropout
+        transformer_noise = transformer.clone() # * dropout
         
         transformer_pred = self.transformer_gmp(transformer_noise)
         transformer_pred = torch.flatten(transformer_pred, 1)
@@ -281,7 +281,7 @@ class Transformer(torch.nn.Module):
 
         return transformed
 
-class UNetAdverserial(ModelBase):
+class WASS(ModelBase):
     def __init__(self, name):
         super().__init__()
         self.name = name

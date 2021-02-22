@@ -81,6 +81,7 @@ def train_model(dataloaders, model, num_epochs, log_prefix):
                 if metric_store_best is None:
                     metric_store_best = metric_store
                 if model.should_save(metric_store_best, metric_store):
+                    metric_store_best = metric_store
                     model.save()
 
 def train(model, dataloaders, epochs = 15, log_prefix=''):

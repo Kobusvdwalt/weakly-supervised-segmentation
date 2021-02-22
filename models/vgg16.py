@@ -77,7 +77,7 @@ class Vgg16GAP(ModelBase):
     def should_save(self, metrics_best, metrics_last):
         metric_best = metrics_best['classification']['f1']
         metric_last = metrics_last['classification']['f1']
-        return metric_best >= metric_last
+        return metric_last >= metric_best
 
     def segment(self, images, class_labels):
         # Extract last layer features
