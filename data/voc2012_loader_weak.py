@@ -50,7 +50,7 @@ class PascalVOCSegmentationWeak(Dataset):
     def __getitem__(self, idx):
         sample = idx
         image_name = self.labels[sample]
-        image = cv2.imread('../datasets/voc2012/JPEGImages/' + image_name + '.jpg')
+        image = cv2.imread('datasets/voc2012/JPEGImages/' + image_name + '.jpg')
         label = cv2.imread(self.vis_folder + image_name + '.png')
 
         image_width = image.shape[1]
@@ -68,7 +68,7 @@ class PascalVOCSegmentationWeak(Dataset):
         }
 
         labels = {
-            'label': label
+            'segmentation': label
         }
 
         data_package = {

@@ -1,13 +1,12 @@
-import sys, os, json, torch
-
-sys.path.insert(0, os.path.abspath('../'))
+import json, torch
 
 from datetime import datetime
 from training.helpers import move_to
+from artifacts import artifact_manager
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-torch.autograd.set_detect_anomaly(True)
-def train_model(dataloaders, model, num_epochs, log_prefix):
+
+def train_model(dataloaders, model, num_epochs):
     log = {}
     log['training_start'] = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     log['model_name'] = model.name
@@ -73,7 +72,7 @@ def train_model(dataloaders, model, num_epochs, log_prefix):
             # Write logs
             log['training_update'] = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
             log[phase].append(entry)
-            with open('output/log__' + log_prefix + '__' + log['training_start'] + '.txt', 'w') as outfile:
+            with open(artifact_manager.instance.getArtifactDir() + model.name + '_training_log.txt', 'w') as outfile:
                 json.dump(log, outfile)
 
             # Save model
@@ -84,9 +83,9 @@ def train_model(dataloaders, model, num_epochs, log_prefix):
                     metric_store_best = metric_store
                     model.save()
 
-def train(model, dataloaders, epochs = 15, log_prefix=''):
+def train(model, dataloaders, epochs = 15):
     # Set up model
     model.to(device)
 
     # Kick off training
-    train_model(dataloaders, model, epochs, log_prefix)
+    train_model(dataloaders, model, epochs)

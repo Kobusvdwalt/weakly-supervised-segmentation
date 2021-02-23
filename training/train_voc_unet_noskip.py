@@ -1,8 +1,4 @@
-
-if __name__ == '__main__':
-    import sys, os
-    sys.path.insert(0, os.path.abspath('../'))
-    
+def train_voc_unet_noskip():
     from torch.utils.data.dataloader import DataLoader
     from training.train import train
     from models.unet_noskip import UNetNoSkip
@@ -18,5 +14,4 @@ if __name__ == '__main__':
             'val': DataLoader(PascalVOCSelfsupervised('val'), batch_size=8, shuffle=False, num_workers=6)
         },
         epochs=21,
-        log_prefix='voc_unet_noskip'
     )

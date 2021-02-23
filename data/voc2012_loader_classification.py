@@ -32,7 +32,7 @@ def classification_labels(source, class_list_filtered):
     # Iterate over each selected class
     for class_name in class_list_filtered:
         # Open the label data for that class
-        f = open('../datasets/voc2012/ImageSets/Main/' + class_name + '_' + source + '.txt', 'r')
+        f = open('datasets/voc2012/ImageSets/Main/' + class_name + '_' + source + '.txt', 'r')
         lines = f.readlines()
 
         # Iterate over each image
@@ -82,7 +82,7 @@ class PascalVOCClassification(Dataset):
 
     def get_image_raw(self, sample):
         image_name = self.images[sample]
-        image = cv2.imread('../datasets/voc2012/JPEGImages/' + image_name + '.jpg')
+        image = cv2.imread('datasets/voc2012/JPEGImages/' + image_name + '.jpg')
         return image_name, image
 
     def get_label_raw(self, sample):

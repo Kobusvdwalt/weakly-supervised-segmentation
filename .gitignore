@@ -10,9 +10,9 @@ __pycache__
 **/output/**
 !**/output/**/
 
-# Ignore all files in checkpoints but keep directory
-**/checkpoints/**
-!**/checkpoints/**/
+# Ignore all files in artifacts but keep manager
+**/artifacts/**
+!/artifact_manager.py
 
 !**readme.txt
 *.pt

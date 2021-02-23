@@ -1,6 +1,5 @@
 
 
-import cv2
 import numpy as np
 
 def dice(prediction, label):
@@ -29,18 +28,3 @@ def dice(prediction, label):
     F1 = (2 * precision * recall) / (precision + recall)
 
     return F1
-
-# Tests
-pred = np.zeros((256, 256))
-label = np.zeros((256, 256))
-
-pred[int(256*0.25): int(256*0.75), int(256*0.25): int(256*0.75)] = 1
-label[int(256*0.25): int(256*0.75), int(256*0.25): int(256*0.75)] = 1
-
-cv2.imshow('pred', pred)
-cv2.imshow('label', label)
-
-
-m = dice(pred, label)
-print(m)
-cv2.waitKey(0)

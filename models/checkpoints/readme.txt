@@ -1,1 +1,0 @@
-The model weights are saved here.

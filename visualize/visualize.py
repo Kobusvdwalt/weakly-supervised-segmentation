@@ -1,18 +1,11 @@
 
 import shutil
-import sys, os, json, torch, cv2
+import os, torch, cv2
 import numpy as np
 
-sys.path.insert(0, os.path.abspath('../'))
-
-from torch.utils.data.dataloader import DataLoader
-from data.voc2012_loader_segmentation import PascalVOCSegmentation
 from data.voc2012 import label_to_image
-from models.unet import UNet
-from models.deeplab101 import DeepLab101
 from training.helpers import move_to
-
-# Helper function for movement
+from artifacts import artifact_manager
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Helper function for cropping
@@ -32,63 +25,38 @@ def visualize_model(model, dataloader, folder_name):
         shutil.rmtree(folder_name)
 
     os.makedirs(folder_name)
-
+    count = 0
     for inputs_in, labels_in, data_package in dataloader:
         inputs = move_to(inputs_in, device)
         labels = move_to(labels_in, device)
         output = model.segment(inputs['image'], inputs['label'])
         for batch_index in range(0, output.shape[0]):
-            # Show image
-            image = inputs['image'][batch_index].clone().detach().cpu().numpy()
-            image = np.moveaxis(image, 0, -1)
-            cv2.imshow('image', image)
+            # # Show image
+            # image = inputs['image'][batch_index].clone().detach().cpu().numpy()
+            # image = np.moveaxis(image, 0, -1)
+            # cv2.imshow('image', image)
             
-            # Show label
-            label = labels['segmentation'][batch_index].clone().detach().cpu().numpy()
-            label = label_to_image(label)
-            cv2.imshow('label', label)
+            # # Show label
+            # label = labels['segmentation'][batch_index].clone().detach().cpu().numpy()
+            # label = label_to_image(label)
+            # cv2.imshow('label', label)
 
-            # Show output
-            cv2.imshow('output', output[batch_index])
-            output_instance = crop(output[batch_index], data_package['width'][batch_index], data_package['height'][batch_index])
+            # # Show output
+            # cv2.imshow('output', output[batch_index])
+            
 
             # Write output
+            output_instance = crop(output[batch_index], data_package['width'][batch_index], data_package['height'][batch_index])
             cv2.imwrite(folder_name + data_package['image_name'][batch_index] + '.png', output_instance * 255)
             cv2.waitKey(1)
-
+            print("Visualize No: " + str(count), end="\r")
+            count += 1
+    print()
 
 def visualize(model, dataloader):
     model.train()
     model.to(device)
 
-    folder_name = 'output/' + model.name + '/'
+    folder_name = artifact_manager.instance.getArtifactDir() + model.name + '_visualization/'
 
     visualize_model(model, dataloader, folder_name)
-
-
-
-dataloader = DataLoader(PascalVOCSegmentation('val'), batch_size=2, shuffle=False, num_workers=0)
-
-# Unet
-# model = UNet(outputs=21, name='voc_unet')
-# model.load()
-# visualize(model, dataloader)
-
-# Deeplab101
-# model = DeepLab101(outputs=21, name='deeplab_101')
-# model.eval()
-# visualize(model, dataloader)
-
-print(len(
-['__background__', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
- 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
- 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']))
-
-
-
-# VGG16 CAM
-
-# WASS
-# model = UNet(outputs=21, name='voc_wass')
-# model.load()
-# visualize(model, dataloader)

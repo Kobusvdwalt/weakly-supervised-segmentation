@@ -28,7 +28,7 @@ def composeAugmentation(source, size=512):
     return augmentation
 
 def segmentation_labels(source):
-    f = open('../datasets/voc2012/ImageSets/Segmentation/' + source + '.txt', 'r')
+    f = open('datasets/voc2012/ImageSets/Segmentation/' + source + '.txt', 'r')
     lines = f.readlines()
 
     # Return the data as two arrays for easy access
@@ -57,7 +57,7 @@ class PascalVOCSegmentation(Dataset):
 
         # Read images and perform augmentation
         image_name = self.labels[sample]
-        image = cv2.imread('../datasets/voc2012/JPEGImages/' + image_name + '.jpg')
+        image = cv2.imread('datasets/voc2012/JPEGImages/' + image_name + '.jpg')
         
         image_width = image.shape[1]
         image_height = image.shape[0]
@@ -65,7 +65,7 @@ class PascalVOCSegmentation(Dataset):
         if self.source == 'test':
             label = np.zeros(image.shape)
         else:
-            label = cv2.imread('../datasets/voc2012/SegmentationClass/' + image_name + '.png')
+            label = cv2.imread('datasets/voc2012/SegmentationClass/' + image_name + '.png')
 
         transform = self.augmentation(image=image, mask=label)
         image = transform['image']

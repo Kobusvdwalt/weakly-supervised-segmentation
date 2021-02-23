@@ -1,6 +1,5 @@
-from shutil import Error
 import torch, os
-
+from artifacts import artifact_manager
 class ModelBase(torch.nn.Module):
     def __init__(self, name='model_base', **kwargs):
         super().__init__()
@@ -22,12 +21,10 @@ class ModelBase(torch.nn.Module):
         i = 0
 
     def load(self):
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
+        weight_path = artifact_manager.instance.getArtifactDir() + self.name + "_weights.pt"
         self.load_state_dict(torch.load(weight_path))
 
     def save(self):
         print('saving model')
-        package_directory = os.path.dirname(os.path.abspath(__file__))
-        weight_path = os.path.join(package_directory, 'checkpoints', self.name + '.pt')
+        weight_path = artifact_manager.instance.getArtifactDir() + self.name + "_weights.pt"
         torch.save(self.state_dict(), weight_path)
