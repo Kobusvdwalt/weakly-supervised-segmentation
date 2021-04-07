@@ -7,4 +7,4 @@ def visualize_voc_vgg16 ():
     dataloader = DataLoader(PascalVOCSegmentation('val'), batch_size=16, shuffle=False, num_workers=0)
     model = Vgg16GAP(outputs=21, name='voc_vgg16')
     model.load()
-    visualize(model, dataloader)
+    visualize(model, dataloader, model.name + '_visualization/')

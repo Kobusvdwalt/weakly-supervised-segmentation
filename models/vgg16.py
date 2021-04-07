@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from models.model_base import ModelBase
 
-from metrics.f1 import f1
+from metrics.f1 import f1, class_f1
 
 class Vgg16GAP(ModelBase):
     def __init__(self, **kwargs):
@@ -62,6 +62,7 @@ class Vgg16GAP(ModelBase):
         metrics = {
             'classification': {
                 'f1': f1,
+                '_class_f1': class_f1
             }
         }
         metrics_output = {}

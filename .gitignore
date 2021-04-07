@@ -6,13 +6,11 @@ __pycache__
 !/datasets/**/
 !/datasets/**.py
 
-# Ignore all files in output but keep directory
-**/output/**
-!**/output/**/
-
 # Ignore all files in artifacts but keep manager
 **/artifacts/**
-!/artifact_manager.py
+!/artifacts/artifact_manager.py
 
+
+**/output/**
 !**readme.txt
 *.pt

@@ -5,7 +5,7 @@ import albumentations
 
 from data.voc2012 import image_to_label, label_to_classes
 
-def composeAugmentation(source, size=512):
+def composeAugmentation(source, size=256):
     if source == 'train':
         augmentation = albumentations.Compose(
         [

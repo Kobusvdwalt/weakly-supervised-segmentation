@@ -1,4 +1,23 @@
 
+#TODO:
+"""
+Build an image plotter to show the weak output, strong output, label and input image
+Build method comparison plotters
+"""
+
+# Experiment outline:
+"""
+First we train 3 fully supervised networks.
+* We show the miou over epoch
+* We show per class miou over epoch
+* We gather 5 input images, their labels, the outputs
+* We gather 5 ouputs over epoch to show improvement
+"""
+
+"""
+Then we train our weak networks.
+"""
+
 # EPIC:
 # * Write up a section with results on each of the methods and our own best effort approach. 
 

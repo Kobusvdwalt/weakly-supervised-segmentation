@@ -7,7 +7,7 @@ from data.voc2012 import label_to_image
 
 from models.model_base import ModelBase
 
-from metrics.iou import iou
+from metrics.iou import iou, class_iou
 
 def double_conv(in_channels, out_channels):
     return torch.nn.Sequential(
@@ -63,7 +63,6 @@ class UNet(ModelBase):
 
     def forward(self, inputs):
         x = inputs['image']
-        input = x.clone().detach().cpu().numpy()
 
         x = self.vgg16.features(x)
 
@@ -85,18 +84,6 @@ class UNet(ModelBase):
         x = self.conv_last(x)
         x = self.sigmoid(x)
 
-        output = x.clone().detach().cpu().numpy()
-
-        input = input[0]
-        input = np.moveaxis(input, 0, 2)
-
-        output = output[0]
-        output = label_to_image(output)
-
-        cv2.imshow('input', input)
-        cv2.imshow('output', output)
-        cv2.waitKey(1)
-
         self.intermediate_outputs.clear()
 
         outputs = {
@@ -116,6 +103,7 @@ class UNet(ModelBase):
         metrics = {
             'segmentation': {
                 'miou': iou,
+                '_class_iou': class_iou
             }
         }
         metrics_output = {}

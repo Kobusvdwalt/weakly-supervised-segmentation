@@ -3,7 +3,7 @@ import os, json
 from metrics.iou import iou
 from data.voc2012 import class_list, image_to_label, label_to_classes
 
-from artifacts import artifact_manager
+from artifacts.artifact_manager import artifact_manager
 
 import cv2
 import numpy as np
@@ -36,8 +36,8 @@ def measure_model(target, output_file):
         'miou_total': np.sum(final[1:]) / 20
     }
 
-    with open(artifact_manager.instance.getArtifactDir() + output_file + '.txt', 'w') as outfile:
+    with open(artifact_manager.getDir() + output_file + '.json', 'w') as outfile:
         json.dump(measurements, outfile)
 
 def measure(folder_name, output_file):
-    measure_model(folder_name, output_file)
+    measure_model(artifact_manager.getDir() + folder_name, output_file)

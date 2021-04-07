@@ -5,7 +5,7 @@ import numpy as np
 
 from data.voc2012 import label_to_image
 from training.helpers import move_to
-from artifacts import artifact_manager
+from artifacts.artifact_manager import artifact_manager
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Helper function for cropping
@@ -53,10 +53,9 @@ def visualize_model(model, dataloader, folder_name):
             count += 1
     print()
 
-def visualize(model, dataloader):
+def visualize(model, dataloader, output_dir):
     model.train()
     model.to(device)
 
-    folder_name = artifact_manager.instance.getArtifactDir() + model.name + '_visualization/'
-
+    folder_name = artifact_manager.getDir() + output_dir
     visualize_model(model, dataloader, folder_name)

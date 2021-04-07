@@ -291,7 +291,9 @@ class WASS(ModelBase):
         self.classifier = Classifier()
         self.transformer = Transformer()
 
-    def epoch_start(self):
+    # TODO: This needs to be converted to consume events
+    def event(self, event):
+        raise Exception("Not Implemented")
         self.step = -1
         self.step_count = 0
         self.classifier.train(False)

@@ -7,4 +7,4 @@ def visualize_voc_unet ():
     dataloader = DataLoader(PascalVOCSegmentation('val'), batch_size=16, shuffle=False, num_workers=0)
     model = UNet(outputs=21, name='voc_unet')
     model.load()
-    visualize(model, dataloader)
+    visualize(model, dataloader, model.name + '_visualization/')

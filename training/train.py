@@ -1,8 +1,8 @@
 import json, torch
 
 from datetime import datetime
-from training.helpers import move_to
-from artifacts import artifact_manager
+from training.helpers import move_to, NumpyEncoder
+from artifacts.artifact_manager import artifact_manager
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -19,6 +19,11 @@ def train_model(dataloaders, model, num_epochs):
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
 
+        model.event({
+            'name': 'EpochStart',
+            'epoch': epoch
+        })
+
         for phase in ['train', 'val']:
             if phase == 'train':
                 model.train()
@@ -26,9 +31,7 @@ def train_model(dataloaders, model, num_epochs):
                 if (epoch % 5 != 0):
                     break
                 model.eval()
-
-            model.epoch_start()
-
+                
             batch_count = 0
             metric_store = None
 
@@ -58,22 +61,25 @@ def train_model(dataloaders, model, num_epochs):
                 
                 for output_key in metrics:
                     for metric_name in metric_store[output_key]:
-                        print(' {} {:.4f},'.format(output_key + '_' + metric_name, metric_store[output_key][metric_name] / batch_count), end='')
+                        if metric_name[0] != "_":
+                            print(' {} {:.4f},'.format(output_key + '_' + metric_name, metric_store[output_key][metric_name] / batch_count), end='')
                 print('', end='\r')
             print('')
 
+            # Write logs
             entry = {}
             entry['epoch'] = epoch
+            entry['outputs'] = {}
+
             for output_key in metric_store.keys():
-                entry[output_key] = {}
+                entry['outputs'][output_key] = {}
                 for metric_name in metric_store[output_key]:
-                    entry[output_key][metric_name] = metric_store[output_key][metric_name] / batch_count
+                    entry['outputs'][output_key][metric_name] = metric_store[output_key][metric_name] / batch_count
             
-            # Write logs
             log['training_update'] = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
             log[phase].append(entry)
-            with open(artifact_manager.instance.getArtifactDir() + model.name + '_training_log.txt', 'w') as outfile:
-                json.dump(log, outfile)
+            with open(artifact_manager.getDir() + model.name + '_training_log.json', 'w') as outfile:
+                json.dump(log, outfile, cls=NumpyEncoder)
 
             # Save model
             if phase == 'val':
@@ -81,11 +87,14 @@ def train_model(dataloaders, model, num_epochs):
                     metric_store_best = metric_store
                 if model.should_save(metric_store_best, metric_store):
                     metric_store_best = metric_store
+                    print('saving model')
                     model.save()
 
-def train(model, dataloaders, epochs = 15):
-    # Set up model
-    model.to(device)
+        model.event({
+            'name': 'EpochEnd',
+            'epoch': epoch
+        })
 
-    # Kick off training
+def train(model, dataloaders, epochs = 15):
+    model.to(device)
     train_model(dataloaders, model, epochs)
