@@ -12,7 +12,6 @@ def plot_classification_class(epochs, values):
     subplot = fig.add_subplot(1, 1, 1)
     legend = []
     values = np.array(values)
-    print(values)
 
     class_colors = color_map(normalized=True)
     class_names = class_list
@@ -56,5 +55,5 @@ def plot_training(training_log):
     
 
     
-
+# def plot_training 
     

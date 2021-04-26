@@ -4,6 +4,8 @@ from artifacts.artifact_manager import artifact_manager
 from mpl_toolkits.axes_grid1 import ImageGrid
 import numpy as np
 
+# TODO: Include image from segmentation network
+
 def get_grid(images, epochs):
     result = {
         'images': images,
@@ -20,13 +22,13 @@ def get_grid(images, epochs):
             elif epoch == "image":
                 im = plt.imread("datasets/voc2012/JPEGImages/" + image + ".jpg")
             else:
-                im = plt.imread(artifact_manager.getDir() + "voc_vgg16_visualization_epoch_" + str(epoch) + "/" + image + ".png")
+                im = plt.imread(artifact_manager.getDir() + "voc_unet_visualization_epoch_" + str(epoch) + "/" + image + ".png")
 
             result['strips'][str(image_index) + "_" + str(epoch_index)] = im
     return result
 
 def plot_images():
-    grid = get_grid(["2007_000033", "2007_000042", "2007_000061", "2007_000123"], [0, 1, 2, "label", "image"])
+    grid = get_grid(["2007_000033", "2007_000042", "2007_000061", "2007_000123"], [0, 2, 4, 8, 10, 12, 14, 16, "label", "image",])
     
     fig = plt.figure()
     fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, wspace=0, hspace=0)

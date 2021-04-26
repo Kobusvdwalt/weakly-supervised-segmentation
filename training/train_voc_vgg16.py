@@ -11,8 +11,8 @@ def train_voc_vgg16():
     train(
         model=model,
         dataloaders = {
-            'train': DataLoader(PascalVOCClassification('train'), batch_size=16, shuffle=True, num_workers=6),
-            'val': DataLoader(PascalVOCClassification('val'), batch_size=16, shuffle=False, num_workers=6)
+            'train': DataLoader(PascalVOCClassification('train'), batch_size=32, shuffle=True, num_workers=6),
+            'val': DataLoader(PascalVOCClassification('val'), batch_size=32, shuffle=False, num_workers=6)
         },
         epochs=21,
     )

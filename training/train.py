@@ -28,7 +28,9 @@ def train_model(dataloaders, model, num_epochs):
             if phase == 'train':
                 model.train()
             if phase == 'val':
-                if (epoch % 5 != 0):
+                if epoch < 10:
+                    break
+                if epoch % 10 != 0:
                     break
                 model.eval()
                 

@@ -4,11 +4,6 @@
 
 This repo contains the code for my masters thesis titled "Segmentation From Classification".
 
-Dependancies:
-* OpenCV
-* Pytorch
-
-
 Setup Instructions:
 
 Step 1:
@@ -23,8 +18,7 @@ Step 3:
     Select environment with source anaconda3/bin/activate and then do conda activate pytorch
 
 Step 4:
-    Install wget (pip install wget)
-    Install albumentations
+    pip install -r requirements.txt
 
 Step 5:
     Download and extract the datasets. There are scripts in the /datasets folder to do this

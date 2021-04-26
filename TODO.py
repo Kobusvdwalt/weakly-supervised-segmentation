@@ -93,3 +93,64 @@ qsub -I -P CSCI1340 -q serial -l select=1:ncpus=1:mpiprocs=1:nodetype=haswell_re
 # Copy specific weight file
 # Step1: rsync -chavzP --stats pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/multiclass_up.pt ./ 
 # Step2: scp -P 443 -i details.pem -r ubuntu@ec2-13-244-167-52.af-south-1.compute.amazonaws.com:~/multiclass_up.pt ./
+
+
+# Talking points :
+# * Global Max Pooling has the same effect as adding a regulizer to constrain erase masks
+# * Global Max Pooling is better suited to adverserial sem seg, because it doesn't have GAP's spacial make up assumption
+# 
+# * We have novelty in the approach due to
+#   - GMP
+#   - Max Along Output Features for a single erase mask
+#   - Full scale UNET
+# 
+# * Our loss function is problematic since it doesn't capture exactly what we desire.
+#   - We desire a pixel to pixel class mapping
+#   - But our loss function is only concerned with maximally decresing classifier accuracy
+#   - THESE ARE NOT THE SAME !!
+# 
+#   
+
+
+# Talking points 2.0:
+# * All other weakly supervised semantic segmentation use a classifier to produce low resolution segmentation maps
+# * This is problematic due to the loss of detailed features (from max pooling all the way down)
+# * Training a semantic segmentation network in an adeverserial fashion allows us to capatalize on the detailed features
+# 
+# Pixel to Pixel training augmentation
+# * What if we augment the current setup with actual end to end, pixel to pixel training ?
+# * Would this help guide our other loss functions to a more attractive point ?
+# 
+# Softmax
+# * Why doesn't softmax seem to work ??? Logically it should be fine
+
+
+"""
+As it currently stands the adversary can never fool the classifier since the "mask" only moves the pixels torwards grey,
+there are still features (not visible to humuns) but descriminative in the image. We need to force information loss somehow.
+Simply adding noise doesn't work since the gradients will be very noisy the network won't move the weight in the direction
+that knows not to mask or to mask that particular patch of images. Perhaps we should to a very hard sigmoid step
+
+Although since the VGG feature extractor is not trainable, this image grey might still cause information loss since 
+the lower level filter weights can't move in the right direction to pick up the non visible features.
+
+This idea of an discriminator makes a ton of sense. It acts as a strong "meta" regulizer.
+Since our loss function is an approximation of our ideal loss function there are gaps that the network can exploit.
+One example is the zebra pattern but there are other instances like bottom and side bars apprearing. This is clearly a shortcut
+to take that meets the classification loss demands without pushing up the mask-regulizer loss.
+I almost feel like a discriminator would be valuable in any case where weak supervision is applied. Or any generation task.
+If only to fight against the network learning any shortcuts.
+
+Should we apply our soft threshold before mask generation or before erasing ?
+Not before classification since that destroys the BCE gradient.
+
+We also need to implement a paramater scheduler for the weights on the losses
+and the random prob sampling
+
+The discriminator is definately working
+During training the emergence of the zebra artifact could be observed but was quickly eliminated
+Instead of appearing in the middle of the mask the pattern has shifted towards the edges of the masks
+which is excelent as this means the network is reducing mask size from outwards in.
+We might end up with undercoverege masks but this can be fixed with morph operations
+Time To Train up and till this point was 70 epochs
+"""

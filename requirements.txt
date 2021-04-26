@@ -1,0 +1,3 @@
+wget
+opencv-contrib-python
+albumentations

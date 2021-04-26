@@ -36,6 +36,12 @@ class Vgg16GAP(ModelBase):
 
         self.loss_function = torch.nn.BCELoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        self.metrics_schema = {
+            'classification': {
+                'f1': f1,
+                '_class_f1': class_f1
+            }
+        }
 
     def forward(self, inputs):
         x = inputs['image']
@@ -57,23 +63,6 @@ class Vgg16GAP(ModelBase):
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
-
-    def metrics(self, outputs, labels):
-        metrics = {
-            'classification': {
-                'f1': f1,
-                '_class_f1': class_f1
-            }
-        }
-        metrics_output = {}
-        for output_key in metrics:
-            metrics_output[output_key] = {}
-            for metric_name in metrics[output_key]:
-                metric_func = metrics[output_key][metric_name]
-                metric_result = metric_func(outputs[output_key].cpu().detach().numpy(), labels[output_key].cpu().detach().numpy())
-                metrics_output[output_key][metric_name] = metric_result
-
-        return metrics_output
 
     def should_save(self, metrics_best, metrics_last):
         metric_best = metrics_best['classification']['f1']

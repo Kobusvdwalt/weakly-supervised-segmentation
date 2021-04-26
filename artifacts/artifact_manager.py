@@ -1,7 +1,6 @@
 import shutil, os
 class ArtifactManager():
     def __init__(self):
-        self.newArtifactContainer("default")
         self.setArtifactContainer("default")
     
     def getDir(self):

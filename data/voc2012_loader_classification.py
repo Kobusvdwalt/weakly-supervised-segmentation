@@ -12,7 +12,7 @@ def composeAugmentation(source, size=256):
             albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
             albumentations.Blur(blur_limit=5),
             albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(size, size, cv2.BORDER_CONSTANT, 0),
+            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
             albumentations.RandomBrightnessContrast(),
             albumentations.HorizontalFlip(),
             albumentations.Normalize(always_apply=True)
@@ -21,7 +21,7 @@ def composeAugmentation(source, size=256):
         augmentation = albumentations.Compose(
         [
             albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(size, size, cv2.BORDER_CONSTANT, 0),
+            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
             albumentations.Normalize(always_apply=True)
         ])
 

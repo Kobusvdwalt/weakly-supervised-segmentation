@@ -43,7 +43,7 @@ def label_to_image(label):
     return image
 
 # Input : RGB image (x, y, 3)
-# Output: 3 dim tensor (x, y, class_count)
+# Output: 3 dim tensor (class_count, x, y)
 def image_to_label(image):
     label = np.zeros((class_count, image.shape[0], image.shape[1]))
     for i in range(0, class_count):

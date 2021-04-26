@@ -52,11 +52,11 @@ class Visualizer():
             from torch.utils.data.dataloader import DataLoader
             from artifacts.artifact_manager import artifact_manager
 
-            dataloader = DataLoader(PascalVOCSegmentation('val'), batch_size=16, shuffle=False, num_workers=0)
+            dataloader = DataLoader(PascalVOCSegmentation('val'), batch_size=32, shuffle=False, num_workers=4)
 
             model = event["model"]
             output_v = event["model"].name + '_visualization_epoch_' + str(event["epoch"]) +'/'
             output_m = event["model"].name + '_visualization_epoch_' + str(event["epoch"]) + '_measure'
 
-            visualize(model, dataloader, output_v)
+            visualize(model, dataloader, output_v, max_count=32*8)
             measure(output_v, output_m)
