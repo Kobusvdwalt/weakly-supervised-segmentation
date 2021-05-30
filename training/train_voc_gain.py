@@ -1,12 +1,12 @@
 import sys, os, torch
 from torch.utils.data.dataloader import DataLoader
 from training.train import train
-from models.wass import WASS
+from models.gain import Gain
 
 from data.voc2012_loader_classification import PascalVOCClassification
 def start():
     # VGG16
-    model = WASS('voc_wass')
+    model = Gain(name='voc_gain')
     train(
         model=model,
         dataloaders = {

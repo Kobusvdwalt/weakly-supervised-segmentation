@@ -1,31 +1,8 @@
 from torch.utils.data import Dataset
 import numpy as np
 import cv2
-import albumentations
 
-from data.voc2012 import class_list
-
-def composeAugmentation(source, size=256):
-    if source == 'train':
-        augmentation = albumentations.Compose(
-        [
-            albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
-            albumentations.Blur(blur_limit=5),
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.RandomBrightnessContrast(),
-            albumentations.HorizontalFlip(),
-            albumentations.Normalize(always_apply=True)
-        ])
-    else:
-        augmentation = albumentations.Compose(
-        [
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.Normalize(always_apply=True)
-        ])
-
-    return augmentation
+from data.voc2012 import class_list, get_augmentation
 
 def classification_labels(source, class_list_filtered):
     label_map = {}
@@ -57,8 +34,8 @@ def classification_labels(source, class_list_filtered):
     for image_name, label in label_map.items():
         # Label smoothing
         # https://arxiv.org/pdf/1906.02629.pdf
-        label[label == 0] = 0.1
-        label[label == 1] = 0.9
+        label[label == 0] = 0.01
+        label[label == 1] = 1 - 0.01
 
         images_array.append(image_name)
         labels_array.append(label)        
@@ -75,7 +52,7 @@ class PascalVOCClassification(Dataset):
         self.images = images
         self.labels = labels
         self.total = len(self.labels)
-        self.augmentation = composeAugmentation(source)
+        self.augmentation = get_augmentation(source)
 
     def __len__(self):
         return self.total

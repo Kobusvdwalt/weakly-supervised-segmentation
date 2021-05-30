@@ -1,37 +1,3 @@
-
-#TODO:
-"""
-Build an image plotter to show the weak output, strong output, label and input image
-Build method comparison plotters
-"""
-
-# Experiment outline:
-"""
-First we train 3 fully supervised networks.
-* We show the miou over epoch
-* We show per class miou over epoch
-* We gather 5 input images, their labels, the outputs
-* We gather 5 ouputs over epoch to show improvement
-"""
-
-"""
-Then we train our weak networks.
-"""
-
-# EPIC:
-# * Write up a section with results on each of the methods and our own best effort approach. 
-
-# TASKS:
-# * Measure deeplab
-# * Measure fcn
-# * Measure unet
-
-# * Implement GAIN
-
-# To deal with the noiseyness of the high resolution mask
-# we can try to perform a blur or a downsample and use that for the loss.
-# Hopefully this means that we can have precision whilst keeping coherent masks.
-
 # Login to AWS proxy
 """
 cd C:\Users\Kobus\
@@ -91,9 +57,10 @@ qsub -I -P CSCI1340 -q serial -l select=1:ncpus=1:mpiprocs=1:nodetype=haswell_re
 """
 
 # Copy specific weight file
-# Step1: rsync -chavzP --stats pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/multiclass_up.pt ./ 
-# Step2: scp -P 443 -i details.pem -r ubuntu@ec2-13-244-167-52.af-south-1.compute.amazonaws.com:~/multiclass_up.pt ./
-
+"""
+rsync -chavzP --stats pjvanderwalt@146.141.21.100:~/weakly-supervised-segmentation/models/checkpoints/multiclass_up.pt ./ 
+scp -P 443 -i details.pem -r ubuntu@ec2-13-244-167-52.af-south-1.compute.amazonaws.com:~/multiclass_up.pt ./
+"""
 
 # Talking points :
 # * Global Max Pooling has the same effect as adding a regulizer to constrain erase masks
@@ -110,7 +77,6 @@ qsub -I -P CSCI1340 -q serial -l select=1:ncpus=1:mpiprocs=1:nodetype=haswell_re
 #   - THESE ARE NOT THE SAME !!
 # 
 #   
-
 
 # Talking points 2.0:
 # * All other weakly supervised semantic segmentation use a classifier to produce low resolution segmentation maps
@@ -153,4 +119,10 @@ Instead of appearing in the middle of the mask the pattern has shifted towards t
 which is excelent as this means the network is reducing mask size from outwards in.
 We might end up with undercoverege masks but this can be fixed with morph operations
 Time To Train up and till this point was 70 epochs
+
+A possible improvement is still to have a random erase selector, to incentivise mask independance.
+For example if the "person" mask was not used to erase, the "bike" mask should still erase the bike part of the image.
+This needs a bit more thinking...
+
+NEED TO IMPLEMENT CRF NEXT !!!!!!!
 """

@@ -1,31 +1,8 @@
 from torch.utils.data import Dataset
 import numpy as np
 import cv2
-import albumentations
 
-from data.voc2012 import image_to_label, label_to_classes
-
-def composeAugmentation(source, size=256):
-    if source == 'train':
-        augmentation = albumentations.Compose(
-        [
-            albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
-            albumentations.Blur(blur_limit=5),
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.RandomBrightnessContrast(),
-            albumentations.HorizontalFlip(),
-            albumentations.Normalize(always_apply=True)
-        ])
-    else:
-        augmentation = albumentations.Compose(
-        [
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.Normalize(always_apply=True)
-        ])
-
-    return augmentation
+from data.voc2012 import image_to_label, label_to_classes, get_augmentation
 
 def segmentation_labels(source):
     f = open('datasets/voc2012/ImageSets/Segmentation/' + source + '.txt', 'r')
@@ -47,7 +24,7 @@ class PascalVOCSegmentation(Dataset):
         self.images = images
         self.labels = labels
         self.total = len(self.labels)
-        self.augmentation = composeAugmentation(source)
+        self.augmentation = get_augmentation(source)
 
     def __len__(self):
         return self.total
@@ -76,11 +53,11 @@ class PascalVOCSegmentation(Dataset):
 
         inputs = {
             'image': np.moveaxis(image, 2, 0),
-            'label': np.delete(label_to_classes(label), 0)
         }
 
         labels = {
-            'segmentation': label
+            'segmentation': label,
+            'classification': np.delete(label_to_classes(label), 0)
         }
 
         data_package = {

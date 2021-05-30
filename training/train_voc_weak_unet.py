@@ -2,7 +2,7 @@ def train_voc_weak_unet(vis_folder):
     from torch.utils.data.dataloader import DataLoader
     from training.train import train
     from models.unet import UNet
-    from training.helpers import Checkpointer, Visualizer
+    from training._common import Checkpointer, Visualizer
     
     from data.voc2012_loader_weak import PascalVOCSegmentationWeak
 

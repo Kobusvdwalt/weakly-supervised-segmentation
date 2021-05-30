@@ -1,31 +1,8 @@
 from torch.utils.data import Dataset
 import numpy as np
 import cv2, os
-import albumentations
 
-from data.voc2012 import image_to_label
-
-def composeAugmentation(source, size=256):
-    if source == 'train':
-        augmentation = albumentations.Compose(
-        [
-            albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
-            albumentations.Blur(blur_limit=5),
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.RandomBrightnessContrast(),
-            albumentations.HorizontalFlip(),
-            albumentations.Normalize(always_apply=True)
-        ])
-    else:
-        augmentation = albumentations.Compose(
-        [
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.Normalize(always_apply=True)
-        ])
-
-    return augmentation
+from data.voc2012 import image_to_label, get_augmentation
 
 class PascalVOCSegmentationWeak(Dataset):
     def __init__(self, source='train', vis_folder=''):
@@ -42,7 +19,7 @@ class PascalVOCSegmentationWeak(Dataset):
 
         self.total = len(self.labels)
         self.source = source
-        self.augmentation = composeAugmentation(source)
+        self.augmentation = get_augmentation(source)
 
     def __len__(self):
         return self.total

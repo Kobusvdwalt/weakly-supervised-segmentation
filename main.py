@@ -5,6 +5,8 @@ if __name__ == '__main__':
     from training import train_voc_unet
     from training import train_voc_weak_unet
     from training import train_voc_wass
+    from training import train_voc_gain
+    from training import train_voc_gain_unet
 
     from visualize import visualize_voc_vgg16
     from visualize import visualize_voc_unet
@@ -17,6 +19,8 @@ if __name__ == '__main__':
 
     # Weak=VGG16 | Strong=Unet
     artifact_manager.setArtifactContainer("weak_vgg16_strong_unet")
+    # train_voc_vgg16.start()
+    plot_training.plot_erase()
     # plot_images.plt_images()
     # train_voc_vgg16.train_voc_vgg16()
     # visualize_voc_vgg16.visualize_voc_vgg16()
@@ -25,11 +29,16 @@ if __name__ == '__main__':
     # train_voc_weak_unet.train_voc_weak_unet(artifact_manager.getDir() + "voc_vgg16_visualization/")
     # visualize_voc_weak_unet.visualize_voc_weak_unet()
 
+    # artifact_manager.setArtifactContainer("weak_wass_strong_unet")
+    # train_voc_gain.start()
+    # train_voc_gain_unet.start()
+    # train_voc_wass.start()
+
 
     # Weak=WSSS | Strong=Unet
-    artifact_manager.setArtifactContainer("weak_wass_strong_unet")
-    train_voc_wass.train_voc_wass()
-    visualize_voc_wass.visualize_voc_wass()
+    # artifact_manager.setArtifactContainer("weak_wass_strong_unet")
+    # train_voc_wass.train_voc_wass()
+    # visualize_voc_wass.visualize_voc_wass()
     # train_voc_weak_unet.train_voc_weak_unet(artifact_manager.getDir() + "voc_wass_visualization/")
 
 

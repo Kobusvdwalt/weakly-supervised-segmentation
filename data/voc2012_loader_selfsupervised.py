@@ -1,36 +1,13 @@
 from torch.utils.data import Dataset
 import numpy as np
-import cv2
-import albumentations
 
 from data.voc2012_loader_classification import PascalVOCClassification
-
-def composeAugmentation(source, size=256):
-    if source == 'train':
-        augmentation = albumentations.Compose(
-        [
-            albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
-            albumentations.Blur(blur_limit=5),
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.RandomBrightnessContrast(),
-            albumentations.HorizontalFlip(),
-            albumentations.Normalize(always_apply=True)
-        ])
-    else:
-        augmentation = albumentations.Compose(
-        [
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.Normalize(always_apply=True)
-        ])
-
-    return augmentation
+from data.voc2012 import get_augmentation
 
 class PascalVOCSelfsupervised(Dataset):
     def __init__(self, source='train'):
         self.loader_classification = PascalVOCClassification(source)
-        self.augmentation = composeAugmentation(source)
+        self.augmentation = get_augmentation(source)
     def __len__(self):
         return self.loader_classification.total
 

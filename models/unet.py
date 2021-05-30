@@ -5,7 +5,7 @@ import torch, torchvision
 import os
 from data.voc2012 import label_to_image
 
-from models.model_base import ModelBase
+from models._common import ModelBase
 
 from metrics.iou import iou, class_iou
 

@@ -1,8 +1,31 @@
-
+import albumentations
 import numpy as np
+import cv2
 
 class_list = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 class_count = len(class_list)
+
+def get_augmentation(source, size=256):
+    if source == 'train':
+        augmentation = albumentations.Compose(
+        [
+            albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
+            albumentations.Blur(blur_limit=5),
+            albumentations.LongestMaxSize(size, always_apply=True),
+            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
+            albumentations.RandomBrightnessContrast(),
+            albumentations.HorizontalFlip(),
+            albumentations.Normalize(always_apply=True)
+        ])
+    else:
+        augmentation = albumentations.Compose(
+        [
+            albumentations.LongestMaxSize(size, always_apply=True),
+            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
+            albumentations.Normalize(always_apply=True)
+        ])
+
+    return augmentation
 
 def get_class_count():
     return len(class_list)

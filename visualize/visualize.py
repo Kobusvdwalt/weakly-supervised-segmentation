@@ -5,7 +5,7 @@ import numpy as np
 import threading
 
 from data.voc2012 import label_to_image
-from training.helpers import move_to
+from training._common import move_to
 from artifacts.artifact_manager import artifact_manager
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

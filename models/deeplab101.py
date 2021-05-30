@@ -1,4 +1,4 @@
-from models.model_base import ModelBase
+from models._common import ModelBase
 from data.voc2012 import label_to_image
 import torchvision
 import torch
