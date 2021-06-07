@@ -5,32 +5,12 @@ import cv2
 from data.voc2012 import label_to_image
 from models._common import ModelBase, build_vgg_features, print_params, ff, fi
 from metrics.f1 import f1
+from models.blobber import Blobber
 
-class Blobber(torch.nn.Module):
-    def __init__(self, kernel_size = 3, iterations = 1):
-        super().__init__()
-        self.iterations = iterations
-        self.blob_conv = torch.nn.Conv2d(1, 1, kernel_size, padding=int((kernel_size-1)/2))
-        self.blob_sigm = torch.nn.Sigmoid()
 
-        self.blob_conv.bias.requires_grad = False
-        self.blob_conv.weight.requires_grad = False
-        self.blob_conv.bias.data.fill_(0)
-        self.blob_conv.weight.data.fill_(1.0/(self.blob_conv.weight.shape[2]**2))
-
-    def forward(self, inputs):
-        for i in range (0, self.iterations):
-            # Expand
-            blob = self.blob_conv(inputs)
-            blob = self.blob_sigm((blob - 0.01) * 1000)
-            # Shrink
-            blob = self.blob_conv(blob)
-            blob = self.blob_sigm((blob - 0.9) * 1000)
-        return blob
-
-class Vgg16GAP(ModelBase):
+class Vgg16GAPBlob(ModelBase):
     def __init__(self, **kwargs):
-        super(Vgg16GAP, self).__init__(**kwargs)
+        super(Vgg16GAPBlob, self).__init__(**kwargs)
 
         self.classifier = torch.nn.Sequential(
             build_vgg_features(),
@@ -40,7 +20,9 @@ class Vgg16GAP(ModelBase):
             torch.nn.Sigmoid()
         )
 
-        self.blob = Blobber(kwargs['blob_size'])
+        self.blob_size = kwargs['blob_size']
+        if self.blob_size > 0:
+            self.blob = Blobber(self.blob_size)
 
         self.upsample = torch.nn.Upsample(scale_factor=16, mode='nearest')
         self.loss_bce = torch.nn.BCELoss()
@@ -55,13 +37,15 @@ class Vgg16GAP(ModelBase):
             label = event['labels']['classification']
             segme = event['labels']['segmentation']
 
-            mask, _ = torch.max(segme[:, 1:], dim=1, keepdim=True)
-            mask = self.blob(mask)
-            image = image * (1 - mask)
+            if self.blob_size > 0:
+                mask, _ = torch.max(segme[:, 1:], dim=1, keepdim=True)
+                mask = self.blob(mask)
+                image = image * (1 - mask)
+
+                cv2.imshow('maskz', mask[0, 0].clone().detach().cpu().numpy())
 
             cv2.imshow('segme', np.moveaxis(image[0].clone().detach().cpu().numpy(), 0, -1))
             cv2.imshow('image', label_to_image(segme[0].clone().detach().cpu().numpy()))
-            cv2.imshow('maskz', mask[0, 0].clone().detach().cpu().numpy())
 
             cv2.waitKey(1)
 
@@ -92,8 +76,8 @@ class Vgg16GAP(ModelBase):
         # Logs and save
         if event['name'] == 'phase_end':
             log_entry = {
-                'f1': self.m_f1,
-                'loss': self.m_loss,
+                'f1': self.m_f1 / event['batch'],
+                'loss': self.m_loss / event['batch'],
                 'epoch': event['epoch'],
                 'phase': event['phase']
             }

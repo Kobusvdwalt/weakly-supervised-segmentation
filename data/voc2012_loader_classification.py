@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import cv2
 
-from data.voc2012 import class_list, get_augmentation
+from data.voc2012 import class_list, get_augmentation, label_smoothing
 
 def classification_labels(source, class_list_filtered):
     label_map = {}
@@ -32,13 +32,10 @@ def classification_labels(source, class_list_filtered):
     labels_array = []
 
     for image_name, label in label_map.items():
-        # Label smoothing
-        # https://arxiv.org/pdf/1906.02629.pdf
-        label[label == 0] = 0.01
-        label[label == 1] = 1 - 0.01
+        label = label_smoothing(label)
 
         images_array.append(image_name)
-        labels_array.append(label)        
+        labels_array.append(label)
 
     return images_array, labels_array
 

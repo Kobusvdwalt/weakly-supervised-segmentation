@@ -44,11 +44,13 @@ def train_model(dataloaders, model, num_epochs):
                 'name': 'phase_end',
                 'epoch': epoch,
                 'phase': phase,
+                'batch': batch_no+1
             })
 
         model.event({
             'name': 'epoch_end',
-            'epoch': epoch
+            'epoch': epoch,
+            'batch': batch_no+1
         })
 
 def train(model, dataloaders, epochs = 15):

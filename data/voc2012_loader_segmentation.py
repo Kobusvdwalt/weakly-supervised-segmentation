@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import cv2
 
-from data.voc2012 import image_to_label, label_to_classes, get_augmentation
+from data.voc2012 import image_to_label, label_to_classes, get_augmentation, label_smoothing
 
 def segmentation_labels(source):
     f = open('datasets/voc2012/ImageSets/Segmentation/' + source + '.txt', 'r')
@@ -55,9 +55,10 @@ class PascalVOCSegmentation(Dataset):
             'image': np.moveaxis(image, 2, 0),
         }
 
+        classification = np.delete(label_to_classes(label), 0)
         labels = {
-            'segmentation': label,
-            'classification': np.delete(label_to_classes(label), 0)
+            'segmentation': label_smoothing(label),
+            'classification': label_smoothing(classification)
         }
 
         data_package = {

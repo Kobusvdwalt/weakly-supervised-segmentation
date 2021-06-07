@@ -59,7 +59,7 @@ class Checkpointer():
 
 class Visualizer():
     def __init__(self):
-        i = 0
+        pass
     # event consumer
     def event(self, event):
         if event['name'] == "EpochEnd":

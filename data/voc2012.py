@@ -108,16 +108,10 @@ def classes_to_words(classes):
 
     return words
 
-# Input : Vector of class scores
-# Output: One-hot encoded vector
-def ThresholdClasses(classes, threshold=0.5):
-    classes[classes > threshold] = 1
-    classes[classes <= threshold] = 0
-    return classes
+def label_smoothing(inputs):
+    # Label smoothing
+    # https://arxiv.org/pdf/1906.02629.pdf
+    inputs[inputs == 0] = 0.01
+    inputs[inputs == 1] = 1 - 0.01
 
-# Input : Vector without background class
-# Output: Vector with background class
-def AddBackgroundClass(classes):
-    background = np.insert(classes, 0, 1, axis=0)
-    return background
-
+    return inputs
