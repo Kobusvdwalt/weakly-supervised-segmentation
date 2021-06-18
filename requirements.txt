@@ -1,3 +1,4 @@
 wget
 opencv-contrib-python
 albumentations
+pycocotools-windows

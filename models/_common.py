@@ -4,15 +4,15 @@ import torch
 from artifacts.artifact_manager import artifact_manager
 from training._common import Logger
 
-def build_vgg_features():
-    vgg = torchvision.models.vgg16(pretrained=True, progress=True)
+def build_vgg_features(pretrained=True, unfreeze_from=10):
+    vgg = torchvision.models.vgg16(pretrained=pretrained, progress=True)
     vgg.avgpool = None
     vgg.classifier = None
     vgg.features = vgg.features[:-1]
     count = 0
     for param in vgg.parameters():
         count += 1
-        if count <= 2 * 10:
+        if count <= 2 * unfreeze_from:
             param.requires_grad = False
         else:
             param.requires_grad = True
@@ -48,3 +48,6 @@ class ModelBase(torch.nn.Module):
     def save(self, tag=""):
         weight_path = artifact_manager.getDir() + self.name + "_weights" + tag + ".pt"
         torch.save(self.state_dict(), weight_path)
+
+    def new_instance(self):
+        raise Exception("new_instance method not implemented")

@@ -1,104 +1,8 @@
 if __name__ == '__main__':
     from artifacts.artifact_manager import artifact_manager
+    from experiments import exp_erase
 
-    from datasets import voc2012_mask
-
-    from training import train_voc_vgg16_blob
-    from training import train_voc_vggm_blob
-
-    from training import train_voc_deeplab101
-    from training import train_voc_unet
-    from training import train_voc_weak_unet
-    from training import train_voc_wass
-    from training import train_voc_gain
-    from training import train_voc_gain_unet
-
-    from visualize import visualize_voc_vgg16
-    from visualize import visualize_voc_unet
-    from visualize import visualize_voc_weak_unet
-    from visualize import visualize_voc_wass
-
-    # voc2012_mask.generate()
-
-    # artifact_manager.setArtifactContainer("vgg16_blob")
-    # train_voc_vgg16_blob.start()
-
-    artifact_manager.setArtifactContainer("vggm_blob")
-    train_voc_vggm_blob.start()
-
-    # Weak=VGG16 | Strong=Unet
-    # artifact_manager.setArtifactContainer("weak_vgg16_strong_unet")
-    # train_voc_vgg16.start()
-    # plot_training.plot_erase()
-    # plot_images.plt_images()
-    # train_voc_vgg16.train_voc_vgg16()
-    # visualize_voc_vgg16.visualize_voc_vgg16()
-    # plot_training.plot_training(artifact_manager.getDir() + "voc_vgg16_training_log.json")
-    # measure.measure("voc_vgg16_visualization/", "voc_vgg16_measurements")
-    # train_voc_weak_unet.train_voc_weak_unet(artifact_manager.getDir() + "voc_vgg16_visualization/")
-    # visualize_voc_weak_unet.visualize_voc_weak_unet()
-
-    # artifact_manager.setArtifactContainer("weak_wass_strong_unet")
-    # train_voc_gain.start()
-    # train_voc_gain_unet.start()
-    # train_voc_wass.start()
-
-
-    # Weak=WSSS | Strong=Unet
-    # artifact_manager.setArtifactContainer("weak_wass_strong_unet")
-    # train_voc_wass.train_voc_wass()
-    # visualize_voc_wass.visualize_voc_wass()
-    # train_voc_weak_unet.train_voc_weak_unet(artifact_manager.getDir() + "voc_wass_visualization/")
-
-
-    # Weak=GAIN | Strong=Unet
-    # Weak=ADVL | Strong=Unet
-    
-    # Supervised Unet
-    # artifact_manager.setArtifactContainer("supervised_unet")
-    # plot_training.plot_training(artifact_manager.getDir() + "voc_unet_training_log.json")
-    # plot_images.plot_images()
-    # train_voc_unet.train_voc_unet()
-    # plot_training.plot_training(artifact_manager.getDir() + "voc_unet_training_log.json")
-    # visualize_voc_unet.visualize_voc_unet()
-    # measure.measure("voc_unet_visualization/", "voc_unet_measurements")
-
-    # Supervised Deeplab101
-    # artifact_manager.setArtifactContainer("supervised_deeplab101")
-
-    # Supervised FCN
-    # artifact_manager.setArtifactContainer("supervised_fcn")
-
-
-# Thoughts:
-# I have moved away from GMP and Channel-max to previous work methods
-# Haven't seen a major improvement other than training stability
-
-# * I want to move from trying to find THE "solution",
-# to writing about everything we have tried. I believe we have a lot to write about.
-
-# * Perhaps we don't get our "crisp" segmentation map because the classifier
-# is using any sort of detailed map to infer the class. How would we test this ?
-
-# A small ammount of supervision is easy to implement within this architecture
-
-# I want to train the classifier on the erased ground truth maps and see how it performs
-
-
-# Next steps is probably to write a paper on this and compare to past work
-
-
-# * 
-
-# TODO:
-# * At what "blobby" point does it fail ?
-# * Add "Blobify" layer after segmentor
-
-
-# * Preprocessing/augmentation of the input images
-#   * Gradient image
-#   * Smoothing/blur
-
+    exp_erase.start()
 
 # Thoughts
 # * We have three problems in the adverserial approach
@@ -109,7 +13,6 @@ if __name__ == '__main__':
 
 # * Object context is a vital part of classification, with a large enough and diverse enough dataset this shouldn't be a problem. But for a small
 # dataset like VOC2012 the network doesn't see the objects of interest in enough different scenes. An obvious example is boats and water. But there are less obvious examples
-
 
 # * We can probably just train a network on the masks straight,
 #       this would allow us to prove that training from shape is possible,
@@ -142,3 +45,36 @@ if __name__ == '__main__':
 
 # Trying to train from scratch has been difficult, the network doesn't really perform well.
 # Perhaps we should try training from scratch in our Adverserial Model ? Moving away from pretrained networks might help..
+
+# TOTALLY RANDOM THOUGHT ALERT !!!
+# COCO has this image with a cat, people and planes. Totally random and unrealistic.
+# This is great for highlighting the segmentation boundries of an object an detatching an object from it's context.. contradictory to the dataset's name :)
+# Still, this idea is interesting, could we use segmentation masks as a data augmentation technique. Currently I am thinking of small modifications,
+# like shifting a person 50 pixels left or right in an image. But can we go more extreme ?
+# First we grey out all semantic context in our image,
+# then we have a bunch of background images,
+# next we cut (based on the object mask) images out and randomly paste them on our background images.
+# 
+# I'm thinking now, do we even need background images ? if we have a sufficently large supply of semanticly meaningful image cuts,
+# can we not then produce an infinite amount of semantic segmentation training samples.. How much of an effect does surrounding context really have ?
+# TOTALLY RANDOM THOUGHT IS NOW OVER !!!
+
+# I would love to add a social studies/human experiment here where we see up till what level humans can use blobified images to find discriminative images.
+# Then further more, what impact does it have when you have seen segmentation masks vs having not seen them before ?
+# What does this mean for researcher bias in this experiment ?
+
+
+# Found a paper that claims "Deep convolutional networks do not classify based on global object shape"
+# * Seems like a low-quality effort, but it has an interesting idea...
+# we can use our segmentation "mask" to generate RGB images that pass through random RGB images, the only discriminative feature would be shape. 
+# This would be an even stronger proof of our assumtion that a classifier can learn from shape. Didn't spend too much time reading the paper but will do so soon
+# Even if this fails, which the paper seems to suggest, I think it raises interesting questions as to why the mask only classifier would succeed as we've shown
+# but the mask pass through fails... After some more thinkinf I would say this is probably due to the noise the RGB sections of the image introduce  
+
+
+# I think we can confidently state that classifiers CAN learn from shape.
+# The VOCO expirement did exactly what was expected in that it closed the train/val f1 score gap
+# The overfitting point can be shown cleanly with a ever increasing dataset size. Whilst showing the train/val gap AND the baseline/erased gap
+# My worry is still that the network is able to learn from shape so well. Even in the cases where we destroy shape a lot.
+# The only thing left that can explain this behaviour is the contextual information. Object surrounds etc
+# We can reasonably infer that because our mask-only experiment shows a more significant drop off in f1 score that context plays a part

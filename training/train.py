@@ -1,7 +1,7 @@
 import torch
 from training._common import move_to
 
-def train_model(dataloaders, model, num_epochs):
+def train_model(dataloaders, model, num_epochs, validation_mod=1):
     for epoch in range(num_epochs):
         model.event({
             'name': 'epoch_start',
@@ -12,7 +12,7 @@ def train_model(dataloaders, model, num_epochs):
             if phase == 'train':
                 model.train()
             if phase == 'val':
-                if epoch < 4 or epoch % 4 != 0:
+                if epoch < 1 or epoch % validation_mod != 0:
                     break
                 model.eval()
             
@@ -53,6 +53,6 @@ def train_model(dataloaders, model, num_epochs):
             'batch': batch_no+1
         })
 
-def train(model, dataloaders, epochs = 15):
+def train(model, dataloaders, epochs = 15, validation_mod=1):
     model.to(model.device)
-    train_model(dataloaders, model, epochs)
+    train_model(dataloaders, model, epochs, validation_mod)

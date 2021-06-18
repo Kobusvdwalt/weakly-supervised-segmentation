@@ -19,6 +19,21 @@ def move_to(obj, device):
   else:
     raise TypeError("Invalid type for move_to")
 
+def get_metric(file_path, metric_key, phase='train'):
+    json_file = open(artifact_manager.getDir() + file_path)
+    data = json.load(json_file)
+
+    metric = []
+    epoch = []
+
+    for entry in data['entries']:
+        if entry['phase'] != phase:
+            continue
+        metric.append(entry[metric_key])
+        epoch.append(entry['epoch'])
+
+    return metric, epoch
+
 class Logger():
     def __init__(self, name):
         self.log = {}

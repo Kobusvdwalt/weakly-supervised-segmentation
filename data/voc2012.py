@@ -115,3 +115,21 @@ def label_smoothing(inputs):
     inputs[inputs == 1] = 1 - 0.01
 
     return inputs
+
+def destroy_shape(mask, size):
+    if size <= 0:
+        return mask
+
+    
+    # se = cv2.getStructuringElement(cv2.MORPH_RECT, (self.erase_size, self.erase_size))
+    # erase_map = cv2.morphologyEx(erase_map, cv2.MORPH_CLOSE, se)
+
+    mask = cv2.GaussianBlur(mask, (size, size), sigmaX=10, sigmaY=10)
+    _, mask = cv2.threshold(mask, 0.1, 1, cv2.THRESH_BINARY)
+
+    mask = cv2.GaussianBlur(mask, (size, size), sigmaX=10, sigmaY=10)
+    _, mask = cv2.threshold(mask, 0.9, 1, cv2.THRESH_BINARY)
+
+    return mask
+
+     

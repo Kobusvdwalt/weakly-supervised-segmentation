@@ -2,22 +2,9 @@ from torch.utils.data import Dataset
 import numpy as np
 import cv2
 
-from data.voc2012 import image_to_label, label_to_classes, get_augmentation, label_smoothing
+from data.voc2012 import image_to_label, label_to_classes, get_augmentation, label_smoothing, segmentation_labels
 
-def segmentation_labels(source):
-    f = open('datasets/voc2012/ImageSets/Segmentation/' + source + '.txt', 'r')
-    lines = f.readlines()
-
-    # Return the data as two arrays for easy access
-    images_array = []
-    labels_array = []
-    for image_name in lines:
-        images_array.append(image_name.replace('\n', ''))
-        labels_array.append(image_name.replace('\n', ''))
-
-    return images_array, labels_array
-
-class PascalVOCSegmentation(Dataset):
+class VOCSegmentation(Dataset):
     def __init__(self, source='train'):
         images, labels = segmentation_labels(source)
         self.source = source

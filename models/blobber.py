@@ -48,4 +48,7 @@ class Blobber(torch.nn.Module):
         return blob
 
     def forward(self, inputs):
-        return self.shrink(self.expand(inputs))
+        blob = self.shrink(self.expand(inputs))
+        blob[blob>0.5] = 1
+        blob[blob<=0.5] = 0
+        return blob

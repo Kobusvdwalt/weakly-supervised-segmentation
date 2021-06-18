@@ -5,24 +5,20 @@ import cv2
 from data.voc2012 import label_to_image
 from models._common import ModelBase, build_vgg_features, print_params, ff, fi
 from metrics.f1 import f1
-from models.blobber import Blobber
 
+class Vgg16GAP(ModelBase):
+    def __init__(self, class_count=20, **kwargs):
+        super(Vgg16GAP, self).__init__(**kwargs)
 
-class Vgg16GAPBlob(ModelBase):
-    def __init__(self, **kwargs):
-        super(Vgg16GAPBlob, self).__init__(**kwargs)
+        self.class_count = class_count
 
         self.classifier = torch.nn.Sequential(
-            build_vgg_features(),
-            torch.nn.Conv2d(512, 20, 1),
+            build_vgg_features(pretrained=True, unfreeze_from=10),
+            torch.nn.Conv2d(512, self.class_count, 1),
             torch.nn.AdaptiveAvgPool2d(output_size=(1, 1)),
             torch.nn.Flatten(1, 3),
             torch.nn.Sigmoid()
         )
-
-        self.blob_size = kwargs['blob_size']
-        if self.blob_size > 0:
-            self.blob = Blobber(self.blob_size)
 
         self.upsample = torch.nn.Upsample(scale_factor=16, mode='nearest')
         self.loss_bce = torch.nn.BCELoss()
@@ -37,15 +33,8 @@ class Vgg16GAPBlob(ModelBase):
             label = event['labels']['classification']
             segme = event['labels']['segmentation']
 
-            if self.blob_size > 0:
-                mask, _ = torch.max(segme[:, 1:], dim=1, keepdim=True)
-                mask = self.blob(mask)
-                image = image * (1 - mask)
-
-                cv2.imshow('maskz', mask[0, 0].clone().detach().cpu().numpy())
-
-            cv2.imshow('segme', np.moveaxis(image[0].clone().detach().cpu().numpy(), 0, -1))
-            cv2.imshow('image', label_to_image(segme[0].clone().detach().cpu().numpy()))
+            cv2.imshow('image', np.moveaxis(image[0].clone().detach().cpu().numpy(), 0, -1))
+            cv2.imshow('segm', label_to_image(segme[0].clone().detach().cpu().numpy()))
 
             cv2.waitKey(1)
 
@@ -90,6 +79,9 @@ class Vgg16GAPBlob(ModelBase):
             else:
                 self.best_f1 = self.m_f1
                 self.save()
+
+    def new_instance(self):
+        return Vgg16GAP(name=self.name, class_count=self.class_count)
 
     def segment(self, images, class_labels):
         # Extract last layer features
