@@ -12,7 +12,7 @@ def train_model(dataloaders, model, num_epochs, validation_mod=1):
             if phase == 'train':
                 model.train()
             if phase == 'val':
-                if epoch < 1 or epoch % validation_mod != 0:
+                if epoch % validation_mod != 0:
                     break
                 model.eval()
             

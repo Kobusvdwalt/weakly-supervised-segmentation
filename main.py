@@ -1,8 +1,11 @@
 if __name__ == '__main__':
     from artifacts.artifact_manager import artifact_manager
     from experiments import exp_erase
+    from experiments import exp_adv
 
-    exp_erase.start()
+    # exp_erase.start()
+    exp_adv.start()
+
 
 # Thoughts
 # * We have three problems in the adverserial approach

@@ -111,8 +111,8 @@ def classes_to_words(classes):
 def label_smoothing(inputs):
     # Label smoothing
     # https://arxiv.org/pdf/1906.02629.pdf
-    inputs[inputs == 0] = 0.01
-    inputs[inputs == 1] = 1 - 0.01
+    inputs[inputs == 0] = 0.1
+    inputs[inputs == 1] = 1 - 0.1
 
     return inputs
 
@@ -120,9 +120,8 @@ def destroy_shape(mask, size):
     if size <= 0:
         return mask
 
-    
-    # se = cv2.getStructuringElement(cv2.MORPH_RECT, (self.erase_size, self.erase_size))
-    # erase_map = cv2.morphologyEx(erase_map, cv2.MORPH_CLOSE, se)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+    mask = cv2.dilate(mask, kernel,iterations = 1)
 
     mask = cv2.GaussianBlur(mask, (size, size), sigmaX=10, sigmaY=10)
     _, mask = cv2.threshold(mask, 0.1, 1, cv2.THRESH_BINARY)
@@ -132,4 +131,8 @@ def destroy_shape(mask, size):
 
     return mask
 
-     
+def downsample_shape(mask, size):
+    mask_ds = cv2.resize(mask, (size, size), interpolation=cv2.INTER_LINEAR)
+    mask = cv2.resize(mask_ds, mask.shape, interpolation=cv2.INTER_NEAREST)
+    _, mask = cv2.threshold(mask, 0.1, 1, cv2.THRESH_BINARY)
+    return mask

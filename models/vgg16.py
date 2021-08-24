@@ -1,6 +1,5 @@
-import torch
+import torch, wandb, cv2
 import numpy as np
-import cv2
 
 from data.voc2012 import label_to_image
 from models._common import ModelBase, build_vgg_features, print_params, ff, fi
@@ -9,7 +8,7 @@ from metrics.f1 import f1
 class Vgg16GAP(ModelBase):
     def __init__(self, class_count=20, **kwargs):
         super(Vgg16GAP, self).__init__(**kwargs)
-
+        self.image_logged = False
         self.class_count = class_count
 
         self.classifier = torch.nn.Sequential(
@@ -31,11 +30,8 @@ class Vgg16GAP(ModelBase):
         if event['name'] == 'minibatch':
             image = event['inputs']['image']
             label = event['labels']['classification']
-            segme = event['labels']['segmentation']
-
+            
             cv2.imshow('image', np.moveaxis(image[0].clone().detach().cpu().numpy(), 0, -1))
-            cv2.imshow('segm', label_to_image(segme[0].clone().detach().cpu().numpy()))
-
             cv2.waitKey(1)
 
             output = self.classifier(image)
@@ -45,8 +41,18 @@ class Vgg16GAP(ModelBase):
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
-        # Print feedback
-        if event['name'] == 'minibatch':
+            if self.image_logged == False and event['phase'] == 'val':
+                imageList = []
+                for i in range(0, 8):
+                    image_vis = np.moveaxis(image[i].clone().detach().cpu().numpy(), 0, -1)
+                    imageList.append(wandb.Image(image_vis, caption='ex_' + str(i)))
+                    
+
+                # wandb.log({"Input Examples": imageList})
+                self.image_logged = True
+
+            
+            # Metrics
             self.m_f1 += f1(output.detach().cpu().numpy(), label.detach().cpu().numpy())
             self.m_loss += loss.clone().detach().cpu().item()
 
@@ -62,23 +68,17 @@ class Vgg16GAP(ModelBase):
             self.m_f1 = 0
             self.m_loss = 0
 
-        # Logs and save
         if event['name'] == 'phase_end':
-            log_entry = {
-                'f1': self.m_f1 / event['batch'],
-                'loss': self.m_loss / event['batch'],
-                'epoch': event['epoch'],
-                'phase': event['phase']
-            }
-            self.logger.add(log_entry)
+            wandb.log({
+                event['phase']: {
+                    "loss": self.m_loss / event['batch'],
+                    "f1": self.m_f1 / event['batch']
+                }
+            }, commit=False)
 
-            if hasattr(self, 'best_f1'):
-                if self.m_f1 > self.best_f1:
-                    self.best_f1 = self.m_f1
-                    self.save()
-            else:
-                self.best_f1 = self.m_f1
-                self.save()
+        if event['name'] == 'epoch_end':
+            wandb.log({'epoch': event['epoch']})
+            
 
     def new_instance(self):
         return Vgg16GAP(name=self.name, class_count=self.class_count)

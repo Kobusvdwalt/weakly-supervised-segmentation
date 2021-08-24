@@ -4,7 +4,7 @@ import torch
 from artifacts.artifact_manager import artifact_manager
 from training._common import Logger
 
-def build_vgg_features(pretrained=True, unfreeze_from=10):
+def build_vgg_features(pretrained=True, unfreeze_from=8):
     vgg = torchvision.models.vgg16(pretrained=pretrained, progress=True)
     vgg.avgpool = None
     vgg.classifier = None

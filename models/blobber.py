@@ -35,20 +35,21 @@ class Blobber(torch.nn.Module):
         for p in self.blob_conv.parameters():
             p.requires_grad = False
 
-    def expand(self, inputs):
-        blob = inputs
-        blob = self.blob_conv(blob)
-        blob = self.blob_sigm((blob - 0.1) * 100)
-        return blob
+    # def expand(self, inputs):
+    #     blob = inputs
+    #     blob = self.blob_conv(blob)
+    #     blob = self.blob_sigm((blob - 0.1) * 100)
+    #     return blob
     
-    def shrink(self, inputs):
-        blob = inputs
-        blob = self.blob_conv(blob)
-        blob = self.blob_sigm((blob - 0.9) * 100)
-        return blob
+    # def shrink(self, inputs):
+    #     blob = inputs
+    #     blob = self.blob_conv(blob)
+    #     blob = self.blob_sigm((blob - 0.9) * 100)
+    #     return blob
 
     def forward(self, inputs):
-        blob = self.shrink(self.expand(inputs))
-        blob[blob>0.5] = 1
-        blob[blob<=0.5] = 0
+        # blob = self.expand(inputs)
+        # blob = self.shrink(blob)
+        # blob[blob>0.5] = 1
+        # blob[blob<=0.5] = 0
         return blob

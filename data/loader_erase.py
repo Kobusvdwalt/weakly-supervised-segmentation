@@ -3,7 +3,7 @@ from random import Random
 import numpy as np
 import cv2
 
-from data.voc2012 import image_to_label, label_to_classes, get_augmentation, label_smoothing, destroy_shape
+from data.voc2012 import image_to_label, label_to_classes, get_augmentation, label_smoothing, destroy_shape, downsample_shape
 
 def read_file(file_path):
     f = open(file_path, 'r')
@@ -60,7 +60,13 @@ class VOCErase(Dataset):
         if self.type == 'none':
             pass
 
+        if self.type == 'erase_downsample':
+            erase_map = np.max(label[1:], axis=0)
+            erase_map = downsample_shape(erase_map, self.size)
+            image[:, erase_map > 0.5] = 0.5
+
         if self.type == 'erase_bbox':
+            # Results in a RGB image where the objects of interesed are covered by grey bounding boxes
             for l in label[1:]:
                 mask = np.zeros((image.shape[1], image.shape[2]))
                 mask[l > 0.5] = 1
