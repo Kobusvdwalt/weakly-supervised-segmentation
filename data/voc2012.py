@@ -5,23 +5,29 @@ import cv2
 class_list = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 class_count = len(class_list)
 
-def get_augmentation(source, size=256):
+def get_augmentation_crf(image_size=320):
+    return albumentations.Compose(
+    [
+        albumentations.LongestMaxSize(image_size, always_apply=True),
+        albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
+    ])
+
+def get_augmentation(source, image_size=320):
     if source == 'train':
         augmentation = albumentations.Compose(
         [
             albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
             albumentations.Blur(blur_limit=5),
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.RandomBrightnessContrast(),
+            albumentations.LongestMaxSize(image_size, always_apply=True),
+            albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
             albumentations.HorizontalFlip(),
             albumentations.Normalize(always_apply=True)
         ])
     else:
         augmentation = albumentations.Compose(
         [
-            albumentations.LongestMaxSize(size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=size, min_width=size, border_mode=cv2.BORDER_CONSTANT),
+            albumentations.LongestMaxSize(image_size, always_apply=True),
+            albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
             albumentations.Normalize(always_apply=True)
         ])
 
@@ -111,8 +117,8 @@ def classes_to_words(classes):
 def label_smoothing(inputs):
     # Label smoothing
     # https://arxiv.org/pdf/1906.02629.pdf
-    inputs[inputs == 0] = 0.1
-    inputs[inputs == 1] = 1 - 0.1
+    # inputs[inputs == 0] = 0.01
+    # inputs[inputs == 1] = 1 - 0.01
 
     return inputs
 
@@ -136,3 +142,6 @@ def downsample_shape(mask, size):
     mask = cv2.resize(mask_ds, mask.shape, interpolation=cv2.INTER_NEAREST)
     _, mask = cv2.threshold(mask, 0.1, 1, cv2.THRESH_BINARY)
     return mask
+
+def class_word_to_index(class_word):
+    return class_list.index(class_word)

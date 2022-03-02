@@ -4,20 +4,23 @@ from datetime import datetime
 from artifacts.artifact_manager import artifact_manager
 
 def move_to(obj, device):
-  if torch.is_tensor(obj):
-    return obj.to(device).float()
-  elif isinstance(obj, dict):
-    res = {}
-    for k, v in obj.items():
-      res[k] = move_to(v, device)
-    return res
-  elif isinstance(obj, list):
-    res = []
-    for v in obj:
-      res.append(move_to(v, device))
-    return res
-  else:
-    raise TypeError("Invalid type for move_to")
+    if torch.is_tensor(obj):
+        if obj.dtype == torch.int64:
+            return obj.to(device)
+        else:
+            return obj.to(device)
+    elif isinstance(obj, dict):
+        res = {}
+        for k, v in obj.items():
+            res[k] = move_to(v, device)
+        return res
+    elif isinstance(obj, list):
+        res = []
+        for v in obj:
+            res.append(move_to(v, device))
+        return res
+    else:
+        raise TypeError("Invalid type for move_to")
 
 def get_metric(file_path, metric_key, phase='train'):
     json_file = open(artifact_manager.getDir() + file_path)

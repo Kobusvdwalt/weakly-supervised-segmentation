@@ -37,20 +37,20 @@ def start():
     # write_images('erase_gaus', size=53)
 
     # # Train Baseline
-    # wandb.init(entity='kobus_wits', project='wass', name='erase_base')
-    # model_base.name = 'base'
-    # model = model_base.new_instance()
-    # wandb.watch(model)
-    # train(
-    #     model=model,
-    #     dataloaders = {
-    #         'train': DataLoader(VOCErase('train', type='none'), batch_size=32, shuffle=True, num_workers=8),
-    #         'val': DataLoader(VOCErase('val', type='none'), batch_size=32, shuffle=False, num_workers=8)
-    #     },
-    #     epochs=epochs,
-    #     validation_mod=validation_mod
-    # )
-    # wandb.finish()
+    wandb.init(entity='kobus_wits', project='wass', name='erase_base')
+    model_base.name = 'base'
+    model = model_base.new_instance()
+    wandb.watch(model)
+    train(
+        model=model,
+        dataloaders = {
+            'train': DataLoader(VOCErase('train', type='none'), batch_size=32, shuffle=True, num_workers=8),
+            'val': DataLoader(VOCErase('val', type='none'), batch_size=32, shuffle=False, num_workers=8)
+        },
+        epochs=epochs,
+        validation_mod=validation_mod
+    )
+    wandb.finish()
 
     # # Train Mask
     # wandb.init(entity='kobus_wits', project='wass', name='erase_omask')

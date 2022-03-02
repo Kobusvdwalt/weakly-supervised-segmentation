@@ -3,23 +3,21 @@ import numpy as np
 
 def iou(prediction, label):
     # Threshold to get either 1 or 0
-    prediction[prediction >= 0.5] = 1
-    prediction[prediction < 0.5] = 0
+    ti = prediction >= 0.5
+    prediction = np.zeros(prediction.shape)
+    prediction[ti] = 1
 
-    label[label >= 0.5] = 1
-    label[label < 0.5] = 0
+    ti = label >= 0.5
+    label = np.zeros(label.shape)
+    label[ti] = 1
 
-    # Compute True Positives, False Positives and False Negatives
-    TP_im = prediction * label
-    FP_im = prediction - label
-    FN_im = label - prediction
+    positive = 1
+    negative = 0
 
-    FP_im[FP_im < 0] = 0
-    FN_im[FN_im < 0] = 0
-
-    TP = np.sum(TP_im)
-    FP = np.sum(FP_im)
-    FN = np.sum(FN_im)
+    TP = np.sum(np.logical_and(prediction == positive, label == positive))
+    # TN = np.sum(np.logical_and(prediction == negative, label == negative))
+    FP = np.sum(np.logical_and(prediction == positive, label == negative))
+    FN = np.sum(np.logical_and(prediction == negative, label == positive))
 
     iou_result = TP / (TP + FP + FN + 1e-6)
 

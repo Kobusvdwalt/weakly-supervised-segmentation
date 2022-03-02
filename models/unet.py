@@ -1,13 +1,12 @@
-
-import cv2
 import numpy as np
-import torch, torchvision
-import os
+import torch, cv2
+
+from models._common import fi, ff
 from data.voc2012 import label_to_image
-
+from metrics.iou import iou
+from models._common import build_vgg_features
 from models._common import ModelBase
-
-from metrics.iou import iou, class_iou
+from models._common import print_params
 
 def double_conv(in_channels, out_channels):
     return torch.nn.Sequential(
@@ -17,128 +16,113 @@ def double_conv(in_channels, out_channels):
         torch.nn.LeakyReLU(negative_slope=0.1, inplace=True),
     )
 
-
 class UNet(ModelBase):
     def __init__(self, **kwargs):
         super(UNet, self).__init__(**kwargs)
-        
-        self.vgg16 = torchvision.models.vgg16(pretrained=True, progress=True)
-        self.vgg16.features = self.vgg16.features[:-1]
-        self.vgg16.avgpool = None
-        self.vgg16.classifier = None
 
-        # Unfreeze conv layers
-        total = 0
-        count = 0
-        unfreeze = 2
-        for param in self.vgg16.parameters():
-            total += 1
-        for param in self.vgg16.parameters():
-            if (count >= total-unfreeze*2):
-                param.requires_grad = True
-            else:
-                param.requires_grad = False
-            count += 1
+        self.metric_iou = 0
+        self.metric_loss = 0
 
-        self.sigmoid = torch.nn.Sigmoid()
+        self.features = build_vgg_features(unfreeze_from=0)
+        self.dconv_up3 = self.double_conv(512, 256, 3, 1)
+        self.dconv_up2 = self.double_conv(256, 128, 3, 1)
+        self.dconv_up1 = self.double_conv(128, 64, 3, 1)
+        self.dconv_up0 = self.double_conv(64, 32, 3, 1)
+        self.conv_comb = torch.nn.Conv2d(32, 21, 1)
+
         self.upsample = torch.nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)        
-        
-        self.dconv_up3 = double_conv(512 + 512, 256)
-        self.dconv_up2 = double_conv(256 + 256, 128)
-        self.dconv_up1 = double_conv(128 + 128, 64)
-        self.conv_comb = torch.nn.Conv2d(64 + 64, 64, 3, padding=1)
-        self.conv_last = torch.nn.Conv2d(64, kwargs['outputs'], 1)
 
         self.intermediate_outputs = []
         def output_hook(module, input, output):
             self.intermediate_outputs.append(output)
 
-        self.vgg16.features[3].register_forward_hook(output_hook)
-        self.vgg16.features[8].register_forward_hook(output_hook)
-        self.vgg16.features[15].register_forward_hook(output_hook)
-        self.vgg16.features[22].register_forward_hook(output_hook)
+        self.features[3].register_forward_hook(output_hook)
+        self.features[8].register_forward_hook(output_hook)
+        self.features[15].register_forward_hook(output_hook)
+        self.features[22].register_forward_hook(output_hook)
 
-        self.loss_function = torch.nn.BCELoss()
+        self.loss_cce = torch.nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
-        self.metrics_schema = {
-            'segmentation': {
-                'miou': iou,
-                '_class_iou': class_iou
-            }
-        }
+        print_params(self.parameters(), "UNET")
 
-    def forward(self, inputs):
-        x = inputs['image']
+    def double_conv(self, in_channels, out_channels, kernel_size=3, padding=1):
+        return torch.nn.Sequential(
+            torch.nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding),
+            torch.nn.LeakyReLU(negative_slope=0.11, inplace=True),
+            torch.nn.Conv2d(out_channels, out_channels, kernel_size, padding=padding),
+            torch.nn.LeakyReLU(negative_slope=0.11, inplace=True),
+        )
 
-        x = self.vgg16.features(x)
+    def forward(self, image):
+        segmentation = self.features(image)
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[3]), dim=1)
-        x = self.dconv_up3(x)
+        segmentation = self.upsample(segmentation)
+        segmentation += self.intermediate_outputs[3]
+        segmentation = self.dconv_up3(segmentation)
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[2]), dim=1)
-        x = self.dconv_up2(x)
+        segmentation = self.upsample(segmentation)
+        segmentation += self.intermediate_outputs[2]
+        segmentation = self.dconv_up2(segmentation)
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[1]), dim=1)
-        x = self.dconv_up1(x)
+        segmentation = self.upsample(segmentation)
+        segmentation += self.intermediate_outputs[1]
+        segmentation = self.dconv_up1(segmentation)
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[0]), dim=1)
-        x = self.conv_comb(x)
-        x = self.conv_last(x)
-        x = self.sigmoid(x)
+        segmentation = self.upsample(segmentation)
+        segmentation += self.intermediate_outputs[0]
+        segmentation = self.dconv_up0(segmentation)
+        segmentation = self.conv_comb(segmentation)
 
         self.intermediate_outputs.clear()
 
         outputs = {
-            'segmentation': x
+            'segmentation': segmentation
         }
 
         return outputs
 
-    def backward(self, outputs, labels):
-        if self.training:
-            loss = self.loss_function(outputs['segmentation'], labels['segmentation'])
-            loss.backward()
+    def event(self, event):
+        if event['name'] == 'phase_start':
+            if event['phase'] == 'train':
+                self.train()
+            else:
+                self.eval()
+
+        if event['name'] == 'minibatch' and event['phase'] == 'train':
+            image = event['inputs']['image'].to(self.device)
+            label = event['labels']['segmentation_cat'].to(self.device, non_blocking=True)
+            segmentation_result = self.forward(image)
+
+            loss_cce = self.loss_cce(segmentation_result['segmentation'], label)
+            loss_cce.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-    def should_save(self, metrics_best, metrics_last):
-        metric_best = metrics_best['segmentation']['miou']
-        metric_last = metrics_last['segmentation']['miou']
-        return metric_last >= metric_best
+            self.metric_loss += loss_cce.item()
 
-    def segment(self, images, class_labels):
-        x = images
-        x = self.vgg16.features(x)
+            print(f'batch {fi(event["batch"])}', end='\r')
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[3]), dim=1)
-        x = self.dconv_up3(x)
+        if event['name'] == 'minibatch' and event['phase'] == 'val':
+            with torch.no_grad():
+                image = event['inputs']['image'].to(self.device)
+                label = event['labels']['segmentation_cat'].to(self.device, non_blocking=True)
+                segmentation_result = self.forward(image)
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[2]), dim=1)
-        x = self.dconv_up2(x)
+                loss_cce = self.loss_cce(segmentation_result['segmentation'], label)
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[1]), dim=1)
-        x = self.dconv_up1(x)
+                segmentation = torch.softmax(segmentation_result['segmentation'], dim=1).detach().cpu().numpy()
+                self.metric_iou += iou(segmentation[:, 1:], event['labels']['segmentation'][:, 1:])
+                self.metric_loss += loss_cce.item()
 
-        x = self.upsample(x)
-        x = torch.cat((x, self.intermediate_outputs[0]), dim=1)
-        x = self.conv_comb(x)
-        x = self.conv_last(x)
-        x = self.sigmoid(x)
+            cv2.imshow('image', np.moveaxis(event['inputs']['image'][0].numpy(), 0, -1))
+            cv2.imshow('label', label_to_image(event['labels']['segmentation'][0]))
+            cv2.imshow('output', label_to_image(segmentation[0]))
+            cv2.waitKey(1)
+            
+            print(f'batch {fi(event["batch"])}', end='\r')
 
-        # Build label
-        result = np.zeros((images.shape[0], images.shape[2], images.shape[3], 3))
-
-        for batch_index in range(0, images.shape[0]):
-            output = x.clone().detach().cpu().numpy()
-            result[batch_index] = label_to_image(output[batch_index])
-
-        self.intermediate_outputs.clear()
-
-        return result
+        if event['name'] == 'phase_end':
+            batch_count = event['batch']
+            print(f' epoch {fi(event["epoch"])} phase {event["phase"]} batch {fi(event["batch"])} miou {ff(self.metric_iou/batch_count)} loss {ff(self.metric_loss/batch_count)}')
+            self.metric_iou = 0
+            self.metric_loss = 0

@@ -3,3 +3,4 @@ opencv-contrib-python
 albumentations
 pycocotools-windows
 wandb
+pydensecrf-1.0rc2

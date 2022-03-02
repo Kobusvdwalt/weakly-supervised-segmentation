@@ -1,5 +1,4 @@
 import torch
-from training._common import move_to
 
 def train_model(dataloaders, model, num_epochs, validation_mod=1):
     for epoch in range(num_epochs):
@@ -25,16 +24,13 @@ def train_model(dataloaders, model, num_epochs, validation_mod=1):
                 inputs_in = batch[0]
                 labels_in = batch[1]
 
-                inputs = move_to(inputs_in, model.device)
-                labels = move_to(labels_in, model.device)
-                
                 torch.set_grad_enabled(phase == 'train')
 
                 # Model minibatch pass
                 model.event({
                     'name': 'minibatch',
-                    'inputs': inputs,
-                    'labels': labels,
+                    'inputs': inputs_in,
+                    'labels': labels_in,
                     'epoch': epoch,
                     'phase': phase,
                     'batch': batch_no+1
