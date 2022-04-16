@@ -7,45 +7,32 @@ def train_model(dataloaders, model, num_epochs, validation_mod=1):
             'epoch': epoch
         })
 
-        for phase in ['train', 'val']:
-            if phase == 'train':
-                model.train()
-            if phase == 'val':
-                if epoch % validation_mod != 0:
-                    break
-                model.eval()
-            
+        for key in dataloaders.keys():
             model.event({
                 'name': 'phase_start',
-                'phase': phase,
+                'phase': key,
             })
 
-            for batch_no, batch in enumerate(dataloaders[phase]):
-                inputs_in = batch[0]
-                labels_in = batch[1]
-
-                torch.set_grad_enabled(phase == 'train')
-
-                # Model minibatch pass
+            for batch_no, batch in enumerate(dataloaders[key]):
                 model.event({
                     'name': 'minibatch',
-                    'inputs': inputs_in,
-                    'labels': labels_in,
-                    'epoch': epoch,
-                    'phase': phase,
+                    'inputs': batch[0],
+                    'labels': batch[1],
+                    'epoch': epoch+1,
+                    'phase': key,
                     'batch': batch_no+1
                 })
 
             model.event({
                 'name': 'phase_end',
                 'epoch': epoch,
-                'phase': phase,
+                'phase': key,
                 'batch': batch_no+1
             })
 
         model.event({
             'name': 'epoch_end',
-            'epoch': epoch,
+            'epoch': epoch+1,
             'batch': batch_no+1
         })
 

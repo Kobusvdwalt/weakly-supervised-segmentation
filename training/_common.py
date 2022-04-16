@@ -6,9 +6,9 @@ from artifacts.artifact_manager import artifact_manager
 def move_to(obj, device):
     if torch.is_tensor(obj):
         if obj.dtype == torch.int64:
-            return obj.to(device)
+            return obj.to(device, non_blocking=True)
         else:
-            return obj.to(device)
+            return obj.to(device, non_blocking=True)
     elif isinstance(obj, dict):
         res = {}
         for k, v in obj.items():

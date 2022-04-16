@@ -5,29 +5,22 @@ import cv2
 class_list = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
 class_count = len(class_list)
 
-def get_augmentation_crf(image_size=320):
-    return albumentations.Compose(
-    [
-        albumentations.LongestMaxSize(image_size, always_apply=True),
-        albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
-    ])
-
 def get_augmentation(source, image_size=320):
-    if source == 'train':
+    if source == 'val':
         augmentation = albumentations.Compose(
         [
-            albumentations.ShiftScaleRotate(rotate_limit=15, always_apply=True),
-            albumentations.Blur(blur_limit=5),
             albumentations.LongestMaxSize(image_size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
-            albumentations.HorizontalFlip(),
+            albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT, position='top_left'),
             albumentations.Normalize(always_apply=True)
         ])
     else:
         augmentation = albumentations.Compose(
         [
+            albumentations.ShiftScaleRotate(always_apply=True),
+            albumentations.HorizontalFlip(),
             albumentations.LongestMaxSize(image_size, always_apply=True),
-            albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
+            albumentations.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+            albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT, position='top_left'),
             albumentations.Normalize(always_apply=True)
         ])
 
@@ -58,6 +51,7 @@ def color_map(N=256, normalized=False):
     return cmap
 
 class_color_list = color_map()
+print(class_color_list)
 
 # Input : 3 dim tensor (x, y, class_count)
 # Output: RGB image (x, y, 3)
