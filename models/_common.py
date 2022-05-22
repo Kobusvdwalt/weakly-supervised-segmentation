@@ -10,17 +10,6 @@ def build_vgg_features(pretrained=True, unfreeze_from=10):
     vgg.classifier = None
     vgg.features = vgg.features[:-1]
 
-    # if padding == True:
-    #     for feature_index, feature in enumerate(vgg.features):
-            # print(feature_index, type(feature))
-            # if type(feature) is torch.nn.modules.conv.Conv2d:
-            #     newFeature = torch.nn.Conv2d(feature.in_channels, feature.out_channels, feature.kernel_size, padding=1)
-            #     vgg.features[feature_index] = newFeature
-            #     print('true')
-            # if type(feature) is torch.nn.modules.pooling.MaxPool2d:
-            #     vgg.features[feature_index] = torch.nn.MaxPool2d(feature.kernel_size, feature.stride, padding=1)
-
-
     count = 0
     for param in vgg.parameters():
         count += 1

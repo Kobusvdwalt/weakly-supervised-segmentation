@@ -3,12 +3,14 @@ import cv2, torch, random
 import numpy as np
 
 from torch.utils.data.dataloader import DataLoader
+import wandb
 from data.voc2012 import label_to_image, class_word_to_index
 from models._common import ModelBase
 from metrics.f1 import f1
 from metrics.iou import iou, class_iou
 from training._common import move_to
 from tools.crf import CRF
+from sklearn import metrics
 
 from models._common import build_vgg_features, print_params
 
@@ -28,7 +30,7 @@ class Classifier(torch.nn.Module):
             torch.nn.Sigmoid()
         )
         self.loss_bce = torch.nn.BCELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.00015)
         # self.optimizer = torch.optim.SGD(self.parameters(), lr=0.02, momentum=0.7)
         print_params(self.parameters(), "Classifier")
 
@@ -43,12 +45,13 @@ class Adversary(torch.nn.Module):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        self.features = build_vgg_features()
+        self.features = build_vgg_features(unfreeze_from=4)
         self.dconv_up3 = self.double_conv(512, 256, 3, 1)
         self.dconv_up2 = self.double_conv(256, 128, 3, 1)
         self.dconv_up1 = self.double_conv(128, 64, 3, 1)
         self.dconv_up0 = self.double_conv(64, 32, 3, 1)
-        self.conv_comb = torch.nn.Conv2d(128, 20, 1)
+        self.last_conv = torch.nn.Conv2d(128, 64, 3, padding=1)
+        self.conv_comb = torch.nn.Conv2d(64, 20, 1)
 
         self.intermediate_outputs = []
         def output_hook(module, input, output):
@@ -64,7 +67,7 @@ class Adversary(torch.nn.Module):
         self.gmp = torch.nn.AdaptiveAvgPool2d((1, 1))
 
         self.loss_bce = torch.nn.BCELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.00005)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
         # self.optimizer = torch.optim.SGD(self.parameters(), lr=0.01, momentum=0.7)
         print_params(self.parameters(), "Adversary")
 
@@ -103,6 +106,7 @@ class Adversary(torch.nn.Module):
         adversary = self.upsample(adversary)
         adversary = self.upsample(adversary)
 
+        adversary = self.last_conv(adversary)
         adversary = self.conv_comb(adversary)
 
         self.intermediate_outputs.clear()
@@ -147,10 +151,6 @@ class WASS(ModelBase):
 
             # Run input through adversary
             adversary_result = self.adversary.segment(image_cu, label_classification_cu)
-            # a_min, _ = torch.min(adversary_result, dim=0, keepdim=True)
-            # a_max, _ = torch.max(adversary_result, dim=0, keepdim=True)
-            # adversary_result = (adversary_result - a_min) / (a_max + 0.0001)
-            # v_min, v_max = v.min(), v.max()
 
             adversary_result = torch.sigmoid(adversary_result) # TODO: try a linear normalization
             mask, _ = torch.max(adversary_result, dim=1, keepdim=True)
@@ -179,35 +179,53 @@ class WASS(ModelBase):
                 # Channel loss
                 adversary_classification = F.adaptive_avg_pool2d(adversary_result, [1, 1])
                 adversary_classification = torch.flatten(adversary_classification, 1)
-                loss_a_channel = self.adversary.loss_bce(adversary_classification[label_classification_cu > 0.5], label_classification_cu[label_classification_cu > 0.5])
+                loss_a_channel = self.adversary.loss_bce(adversary_classification, label_classification_cu)
 
                 # Classifier loss
-                mask, _ = torch.max(adversary_result, dim=1, keepdim=True)
-                erased = image_cu * (1 - mask)
-                erased[erased <= 0] = 0.00001
                 classification = self.classifier(erased)
                 loss_a_classifier = torch.mean(classification[label_classification_cu > 0.5])
 
                 # Constrain loss
-                loss_a_constrain = torch.mean(adversary_result[adversary_result > 0.5]) + 0.0001
-                loss_a = loss_a_classifier * 0.5 + loss_a_constrain * 0.3 + loss_a_channel * 0.2
-                print(loss_a)
+                loss_a_constrain = torch.mean(adversary_result)
+                loss_a = loss_a_constrain * 0.3 + loss_a_channel * 0.45 + loss_a_classifier * 0.45
 
                 self.adversary.optimizer.zero_grad()
                 loss_a.backward()
                 self.adversary.optimizer.step()
 
-            erased = erased[0].detach().cpu().numpy()
-            erased = np.moveaxis(erased, 0, -1)
-            mask_vis = mask[0, 0].detach().cpu().numpy()
-            mask_min = np.min(mask_vis)
-            mask_normed = mask_vis - mask_min
-            mask_max = np.max(mask_normed)
-            mask_normed = mask_normed / (mask_max + 1e-5)
-            cv2.imshow('erased', erased)
-            cv2.imshow('mask_vis', mask_vis)
-            cv2.imshow('mask_normed', mask_normed)
-            cv2.waitKey(1)
+                wandb.log({
+                    'step': self.step,
+                    'loss': loss_a.detach().cpu().numpy(),
+                    'loss_a_channel': loss_a_channel.detach().cpu().numpy(),
+                    'loss_a_classifier': loss_a_classifier.detach().cpu().numpy(),
+                    'loss_a_constrain': loss_a_constrain.detach().cpu().numpy(),
+                    # 'accuracy': metrics.accuracy_score(label.flatten(), predi.flatten()),
+                    # 'f1': metrics.f1_score(label.flatten(), predi.flatten())
+                })
+
+            if self.step % 16 == 0:
+                # label = label_classification_cu.detach().cpu().numpy()
+                # predi = adversary_classification.detach().cpu().numpy().flatten()
+
+                # predi[predi > 0.5] = 1
+                # predi[predi <= 0.5] = 0
+
+                
+
+                erased = erased[0].detach().cpu().numpy()
+                erased = np.moveaxis(erased, 0, -1)
+
+                predi_vis = adversary_result[0].clone().detach().cpu().numpy()
+                predi_vis_bg = np.power(1 - np.max(predi_vis, axis=0, keepdims=True), 4)
+                predi_vis = np.concatenate((predi_vis_bg, predi_vis), axis=0)
+                cv2.imshow('predi', label_to_image(predi_vis))
+
+                mask_vis = mask[0, 0].detach().cpu().numpy()
+                mask_vis = mask_vis - np.min(mask_vis) / (np.max(mask_vis + 1e-5))
+                cv2.imshow('erased', erased)
+                cv2.imshow('mask_vis', mask_vis)
+                cv2.waitKey(1)
+
 
 
 

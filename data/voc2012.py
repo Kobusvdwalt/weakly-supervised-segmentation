@@ -16,10 +16,10 @@ def get_augmentation(source, image_size=320):
     else:
         augmentation = albumentations.Compose(
         [
-            albumentations.ShiftScaleRotate(always_apply=True),
-            albumentations.HorizontalFlip(),
+            # albumentations.ShiftScaleRotate(always_apply=True),
+            # albumentations.HorizontalFlip(),
             albumentations.LongestMaxSize(image_size, always_apply=True),
-            albumentations.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
+            # albumentations.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.1),
             albumentations.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT, position='top_left'),
             albumentations.Normalize(always_apply=True)
         ])
@@ -51,7 +51,6 @@ def color_map(N=256, normalized=False):
     return cmap
 
 class_color_list = color_map()
-print(class_color_list)
 
 # Input : 3 dim tensor (x, y, class_count)
 # Output: RGB image (x, y, 3)

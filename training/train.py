@@ -18,6 +18,7 @@ def train_model(dataloaders, model, num_epochs, validation_mod=1):
                     'name': 'minibatch',
                     'inputs': batch[0],
                     'labels': batch[1],
+                    'data': batch[2],
                     'epoch': epoch+1,
                     'phase': key,
                     'batch': batch_no+1

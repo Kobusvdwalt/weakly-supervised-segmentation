@@ -14,46 +14,39 @@ def start():
     from training.save_semseg import save_semseg
     from training.save_semseg import measure_semseg
     from artifacts.artifact_manager import artifact_manager
+    from training.config_manager import Config
+    from training.config_manager import config_manager
 
     sweeps = [
-        {
-            'classifier_dataset_root': 'datasets/generated/voc_aug',
-            'classifier_name': 'vgg16',
-            'classifier_epochs': 10,
-            'classifier_batch_size_train': 16,
-            'classifier_batch_size_cams': 16,
-            'classifier_image_size': 448,
-            'cams_save_gt_labels': False,
-            'affinity_net_batch_size': 8,
-
-            'semseg_dataset_root': 'datasets/generated/voc_aug',
-            'semseg_name': 'deeplab',
-            'semseg_batch_size': 4,
-        },
-        # {
-        #     'classifier_dataset_root': 'datasets/generated/voc_aug',
-        #     'classifier_name': 'wasscam',
-        #     'classifier_epochs': 10,
-        #     'classifier_batch_size_train': 16,
-        #     'classifier_batch_size_cams': 16,
-        #     'classifier_image_size': 448,
-        #     'cams_save_gt_labels': False,
-        #     'affinity_net_batch_size': 8,
-        # },
+        # Config(
+        #     classifier_dataset_root='datasets/generated/voc_aug',
+        #     classifier_name='vgg16',
+        #     classifier_epochs=10,
+        #     classifier_batch_size_train=8,
+        #     classifier_batch_size_cams=16,
+        #     affinity_net_batch_size=8,
+        #     classifier_pretrained=False,
+        #     classifier_pretrained_unfreeze=-1
+        # ),
+        Config(
+            semseg_dataset_root='datasets/generated/voc_aug',
+            semseg_name='deeplab',
+            semseg_pretrained=True,
+            semseg_batch_size=4,
+            semseg_epochs=1
+        ),
     ]
 
     for sweep_index, sweep in enumerate(sweeps):
         artifact_manager.setArtifactContainer('psa_sweep_' + str(sweep_index))
+        config_manager.setConfig(sweep)
         print(f'Sweep start {sweep_index}/{len(sweeps)}')
 
         # # Train the classifier
-        # train_classifier(
-        #     dataset_root=sweep['classifier_dataset_root'],
-        #     model_name=sweep['classifier_name'],
-        #     epochs=sweep['classifier_epochs'],
-        #     batch_size=sweep['classifier_batch_size_train'],
-        #     image_size=sweep['classifier_image_size'],
-        # )
+        # train_classifier(sweep)
+
+        # Train segmentation network
+        train_semseg(sweep)
 
         # # Save out the CAMs
         # save_cams(
@@ -95,23 +88,22 @@ def start():
 
         # # Transform cams into a functional dataset
 
-        # # Train segmentation network
-        # train_semseg(
-        #     dataset_root=sweep['semseg_dataset_root'],
+
+        #################################################################
+        #### SEGMENTATION ###############################################
+        #################################################################
+
+
+
+        # # Save segmentation outputs
+        # save_semseg(
+        #     dataset_root='datasets/generated/voc',
         #     model_name=sweep['semseg_name'],
         #     image_size=sweep['classifier_image_size'],
         #     batch_size=sweep['semseg_batch_size'],
         # )
 
-        # Save segmentation outputs
-        save_semseg(
-            dataset_root='datasets/generated/voc',
-            model_name=sweep['semseg_name'],
-            image_size=sweep['classifier_image_size'],
-            batch_size=sweep['semseg_batch_size'],
-        )
-
         # # Measure segmentation outputs
         # measure_semseg(
-            
+        #     dataset_root='datasets/generated/voc',
         # )

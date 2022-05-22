@@ -1,3 +1,4 @@
+from msilib.schema import Error
 import os
 import torch
 import numpy as np
@@ -26,10 +27,11 @@ class Segmentation(Dataset):
     def __init__(self,
         dataset_root,
         source = 'train',
-        source_augmentation='val',
+        augmentation='val',
         image_size = 256,
         requested_labels = ['classification'],
         affinity_root=None,
+        pseudo_root=None,
     ):
         self.dataset_root = dataset_root
         self.image_root = dataset_root + '/images'
@@ -43,8 +45,15 @@ class Segmentation(Dataset):
         self.labels = labels
         self.requested_labels = requested_labels
         self.total = len(self.labels)
-        self.augmentation = get_augmentation(source_augmentation, image_size=image_size)
+        self.augmentation = get_augmentation(augmentation, image_size=image_size)
         self.affinity_root = affinity_root
+        self.pseudo_root = pseudo_root
+
+        if 'affinity' in self.requested_labels and self.affinity_root == None:
+            raise Error('affinity label requested but no root specified')
+
+        if 'pseudo' in self.requested_labels and self.pseudo_root == None:
+            raise Error('affinity label requested but no root specified')
 
         if self.affinity_root:
             self.affinity_label = ExtractAffinityLabelInRadius(image_size//8, radius=5)
@@ -64,7 +73,7 @@ class Segmentation(Dataset):
         # Read masks
         masks = []
 
-        # - Read ground truth semgentation mask
+        # - Read ground truth segmentation mask
         label_path = os.path.join(self.label_root, image_name + '.png')
         label = cv2.imread(label_path)
         masks.append(label)
@@ -76,6 +85,11 @@ class Segmentation(Dataset):
 
             masks.append(img_la)
             masks.append(img_ha)
+
+        # - Read pseudo label masks
+        if 'pseudo' in self.requested_labels:
+            img_pseudo = cv2.imread(os.path.join(self.pseudo_root, image_name + '.png'))
+            masks.append(img_pseudo)
 
         # Apply augmentations
         transform = self.augmentation(image=image, masks=masks)
@@ -101,6 +115,18 @@ class Segmentation(Dataset):
                 labels[requested_label] = label_smoothing(segmentation).astype(np.float32)
             if requested_label == 'affinity':
                 labels[requested_label] = self.affinity_label.get(transform['masks'][1], transform['masks'][2])
+            if requested_label == 'pseudo':
+                labels[requested_label] = image_to_label(transform['masks'][-1])
+
+
+        # Calculate content width and height
+        aspect_ratio = image_width / image_height
+        if aspect_ratio > 1:
+            content_width = image_augmented_width
+            content_height = round(image_augmented_width / aspect_ratio)
+        else:
+            content_width = round(image_augmented_height * aspect_ratio)
+            content_height = image_augmented_height
 
         # Build meta data
         data_package = {
@@ -111,6 +137,8 @@ class Segmentation(Dataset):
             'height': image_height,
             'augmented_width': image_augmented_width,
             'augmented_height': image_augmented_height,
+            'content_width': content_width,
+            'content_height': content_height
         }
         
         return (inputs, labels, data_package)

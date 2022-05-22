@@ -1,9 +1,10 @@
 import numpy as np
 import torch, cv2
+import wandb
 
 from models._common import fi, ff
 from data.voc2012 import label_to_image
-from metrics.iou import iou
+from metrics.iou import class_iou, iou
 from models._common import build_vgg_features
 from models._common import ModelBase
 from models._common import print_params
@@ -75,54 +76,48 @@ class UNet(ModelBase):
 
         self.intermediate_outputs.clear()
 
-        outputs = {
-            'segmentation': segmentation
-        }
-
-        return outputs
+        return segmentation
 
     def event(self, event):
-        if event['name'] == 'phase_start':
-            if event['phase'] == 'train':
-                self.train()
-            else:
-                self.eval()
-
         if event['name'] == 'minibatch' and event['phase'] == 'train':
-            image = event['inputs']['image'].to(self.device)
-            label = event['labels']['segmentation_cat'].to(self.device, non_blocking=True)
-            segmentation_result = self.forward(image)
+            image_cu = event['inputs']['image'].cuda(non_blocking=True)
+            label_cu = event['labels']['segmentation'].cuda(non_blocking=True)
+            label_cu = torch.argmax(label_cu, 1).long()
 
-            loss_cce = self.loss_cce(segmentation_result['segmentation'], label)
-            loss_cce.backward()
-            self.optimizer.step()
+            segmentation_result = self.forward(image_cu)
+
+            loss = self.loss_cce(segmentation_result, label_cu)
+
             self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
-            self.metric_loss += loss_cce.item()
+            image = event['inputs']['image'].detach().numpy()
+            image = image[0]
+            image = np.moveaxis(image, 0, -1)
+            cv2.imshow('image', image)
 
-            print(f'batch {fi(event["batch"])}', end='\r')
+            label = event['labels']['segmentation'].detach().numpy()
+            label_vis = label[0]
+            label_vis = label_to_image(label_vis)
+            cv2.imshow('label', label_vis)
 
-        if event['name'] == 'minibatch' and event['phase'] == 'val':
-            with torch.no_grad():
-                image = event['inputs']['image'].to(self.device)
-                label = event['labels']['segmentation_cat'].to(self.device, non_blocking=True)
-                segmentation_result = self.forward(image)
+            prediction = torch.softmax(segmentation_result.detach(), 1).cpu().numpy()
+            prediction_vis = prediction[0]
+            prediction_vis = label_to_image(prediction_vis)
+            cv2.imshow('prediction', prediction_vis)
 
-                loss_cce = self.loss_cce(segmentation_result['segmentation'], label)
-
-                segmentation = torch.softmax(segmentation_result['segmentation'], dim=1).detach().cpu().numpy()
-                self.metric_iou += iou(segmentation[:, 1:], event['labels']['segmentation'][:, 1:])
-                self.metric_loss += loss_cce.item()
-
-            cv2.imshow('image', np.moveaxis(event['inputs']['image'][0].numpy(), 0, -1))
-            cv2.imshow('label', label_to_image(event['labels']['segmentation'][0]))
-            cv2.imshow('output', label_to_image(segmentation[0]))
             cv2.waitKey(1)
-            
-            print(f'batch {fi(event["batch"])}', end='\r')
 
-        if event['name'] == 'phase_end':
-            batch_count = event['batch']
-            print(f' epoch {fi(event["epoch"])} phase {event["phase"]} batch {fi(event["batch"])} miou {ff(self.metric_iou/batch_count)} loss {ff(self.metric_loss/batch_count)}')
-            self.metric_iou = 0
-            self.metric_loss = 0
+            class_iou_mean = class_iou(prediction, label).mean()
+            iou_result = iou(prediction, label)
+
+            wandb.log({
+                "class_iou_mean": class_iou_mean,
+                "iou_result": iou_result,
+                "loss": loss.detach().cpu().numpy(),
+            })
+
+        if event['name'] == 'epoch_end':
+            print('')
+            self.save()

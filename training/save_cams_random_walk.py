@@ -39,11 +39,14 @@ def save_cams_random_walk(
         prefetch_factor=4
     )
 
-    # Clear and create destination directory
+    # Get cam source directory
     cam_path = os.path.join(artifact_manager.getDir(), 'cam')
-    if (os.path.exists(cam_path)):
-        shutil.rmtree(cam_path)
-    os.makedirs(cam_path)
+
+    # Clear and create output directory
+    labels_rw_path = os.path.join(artifact_manager.getDir(), 'labels_rw')
+    if (os.path.exists(labels_rw_path)):
+        shutil.rmtree(labels_rw_path)
+    os.makedirs(labels_rw_path)
 
     for batch_no, batch in enumerate(dataloader):
         inputs_in = batch[0]
@@ -61,6 +64,14 @@ def save_cams_random_walk(
             cam_path_instance = os.path.join(cam_path, image_name + '.png')
             cam = cv2.imread(cam_path_instance, cv2.IMREAD_GRAYSCALE)
 
+            image_width = datapacket_in['image_width'][image_no].detach().numpy()
+            image_height = datapacket_in['image_width'][image_no].detach().numpy()
+            # content_width = datapacket_in['content_width'][image_no].detach().numpy()
+            # content_height = datapacket_in['content_height'][image_no].detach().numpy()
+
+            
+            dheight = int(np.ceil(image_height/8))
+            dwidth = int(np.ceil(image_width/8))
 
 
             print('aff_mat.shape', aff_mat.shape)
@@ -88,62 +99,62 @@ def save_cams_random_walk(
             imageio.imsave(os.path.join(args.out_rw, name + '.png'), res)
             
 
-        # Save out cams
-        for cam_no, cam in enumerate(cams):
-            # Save out ground truth labels for testing the rest of the system
-            if use_gt_labels:
-                cam = labels_in['segmentation'][cam_no][1:]
-                cam = F.adaptive_avg_pool2d(cam, [32, 32]).numpy()
+        # # Save out cams
+        # for cam_no, cam in enumerate(cams):
+        #     # Save out ground truth labels for testing the rest of the system
+        #     if use_gt_labels:
+        #         cam = labels_in['segmentation'][cam_no][1:]
+        #         cam = F.adaptive_avg_pool2d(cam, [32, 32]).numpy()
 
-                for i in range(0, cam.shape[0]):
-                    cam[i] = cv2.blur(cam[i], (3, 3))
-                    cam[i] = cv2.blur(cam[i], (3, 3))
+        #         for i in range(0, cam.shape[0]):
+        #             cam[i] = cv2.blur(cam[i], (3, 3))
+        #             cam[i] = cv2.blur(cam[i], (3, 3))
 
-            # Disregard false positives
-            gt_mask = labels_in['classification'][cam_no].numpy()
-            gt_mask[gt_mask > 0.5] = 1
-            gt_mask[gt_mask <= 0.5] = 0
-            gt_mask = np.expand_dims(np.expand_dims(gt_mask, -1), -1)
-            cam *= gt_mask
+        #     # Disregard false positives
+        #     gt_mask = labels_in['classification'][cam_no].numpy()
+        #     gt_mask[gt_mask > 0.5] = 1
+        #     gt_mask[gt_mask <= 0.5] = 0
+        #     gt_mask = np.expand_dims(np.expand_dims(gt_mask, -1), -1)
+        #     cam *= gt_mask
 
-            # Upsample CAM to original image size
-            # - Calculate original image aspect ratio
-            width = datapacket_in['width'][cam_no].detach().numpy()
-            height = datapacket_in['height'][cam_no].detach().numpy()
-            aspect_ratio = width / height
+        #     # Upsample CAM to original image size
+        #     # - Calculate original image aspect ratio
+        #     width = datapacket_in['width'][cam_no].detach().numpy()
+        #     height = datapacket_in['height'][cam_no].detach().numpy()
+        #     aspect_ratio = width / height
 
-            # - Calculate width and height to cut from upscaled CAM
-            if aspect_ratio > 1:
-                cut_width = image_size
-                cut_height = round(image_size / aspect_ratio)
-            else:
-                cut_width = round(image_size * aspect_ratio)
-                cut_height = image_size
+        #     # - Calculate width and height to cut from upscaled CAM
+        #     if aspect_ratio > 1:
+        #         cut_width = image_size
+        #         cut_height = round(image_size / aspect_ratio)
+        #     else:
+        #         cut_width = round(image_size * aspect_ratio)
+        #         cut_height = image_size
 
-            # - Upscale CAM to match input size
-            cam = np.moveaxis(cam, 0, -1)
-            cam = cv2.resize(cam, (image_size, image_size), interpolation=cv2.INTER_LINEAR)
-            cam = np.moveaxis(cam, -1, 0)
+        #     # - Upscale CAM to match input size
+        #     cam = np.moveaxis(cam, 0, -1)
+        #     cam = cv2.resize(cam, (image_size, image_size), interpolation=cv2.INTER_LINEAR)
+        #     cam = np.moveaxis(cam, -1, 0)
 
-            # - Cut CAM from input size and upscale to original image size 
-            cam = cam[:, 0:cut_height, 0:cut_width]
-            cam = np.moveaxis(cam, 0, -1)
-            cam = cv2.resize(cam, (width, height), interpolation=cv2.INTER_LINEAR)
-            cam = np.moveaxis(cam, -1, 0)
+        #     # - Cut CAM from input size and upscale to original image size 
+        #     cam = cam[:, 0:cut_height, 0:cut_width]
+        #     cam = np.moveaxis(cam, 0, -1)
+        #     cam = cv2.resize(cam, (width, height), interpolation=cv2.INTER_LINEAR)
+        #     cam = np.moveaxis(cam, -1, 0)
 
-            # Normalize each cam map to between 0 and 1
-            cam_max = np.max(cam, (1, 2), keepdims=True)
-            cam_norm = cam / (cam_max + 1e-5)
+        #     # Normalize each cam map to between 0 and 1
+        #     cam_max = np.max(cam, (1, 2), keepdims=True)
+        #     cam_norm = cam / (cam_max + 1e-5)
 
-            # Collapse cam from 3d into long 2d
-            cam_norm = np.reshape(cam_norm, (cam_norm.shape[0] * cam_norm.shape[1], cam_norm.shape[2]))
-            cam_norm[cam_norm > 1] = 1
-            cam_norm[cam_norm < 0] = 0
+        #     # Collapse cam from 3d into long 2d
+        #     cam_norm = np.reshape(cam_norm, (cam_norm.shape[0] * cam_norm.shape[1], cam_norm.shape[2]))
+        #     cam_norm[cam_norm > 1] = 1
+        #     cam_norm[cam_norm < 0] = 0
 
-            # Write image
-            img_no = datapacket_in['image_name'][cam_no]
-            cv2.imwrite(os.path.join(cam_path, img_no) + '.png', cam_norm * 255)
-            print('Save cam : ', img_no, end='\r')
+        #     # Write image
+        #     img_no = datapacket_in['image_name'][cam_no]
+        #     cv2.imwrite(os.path.join(cam_path, img_no) + '.png', cam_norm * 255)
+        #     print('Save cam : ', img_no, end='\r')
     print('')
 
 # def measure_cams(
