@@ -46,6 +46,7 @@ def start():
         config_manager.setConfig(sweep)
         print(f'Sweep start {sweep_index}/{len(sweeps)}')
 
+        ########### CAMS
         # # Train the classifier
         # train_classifier(sweep)
 
@@ -55,6 +56,7 @@ def start():
         # # Measure cams
         # measure_cams(sweep)
 
+        ########### AFFINITY NET
         # # Apply DCRF on CAMs
         # save_cams_crf(sweep)
 
@@ -63,26 +65,13 @@ def start():
 
         # Perform random walk
         save_cams_random_walk(sweep)
-
+        
+        ########### SEM SEG
         # # Train segmentation network
         # train_semseg(sweep)
 
-        # # Transform cams into a functional dataset
-        #################################################################
-        #### SEGMENTATION ###############################################
-        #################################################################
-
-
-
         # # Save segmentation outputs
-        # save_semseg(
-        #     dataset_root='datasets/generated/voc',
-        #     model_name=sweep['semseg_name'],
-        #     image_size=sweep['classifier_image_size'],
-        #     batch_size=sweep['semseg_batch_size'],
-        # )
+        # save_semseg(sweep)
 
-        # # Measure segmentation outputs
-        # measure_semseg(
-        #     dataset_root='datasets/generated/voc',
-        # )
+        # Measure segmentation outputs
+        measure_semseg(sweep)
