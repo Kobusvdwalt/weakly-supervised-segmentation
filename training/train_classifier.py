@@ -12,7 +12,7 @@ def train_classifier(config: Config):
 
     model = get_model(config.classifier_name)
     
-    wandb.init(entity='kobus_wits', project='wass_classifier', name='classifier_' + config.classifier_name, config=config_json)
+    wandb.init(entity='kobus_wits', project='wass_classifier', name=config.sweep_id + '_c_' + config.classifier_name, config=config_json)
     wandb.watch(model)
 
     train(
@@ -27,9 +27,9 @@ def train_classifier(config: Config):
                 ),
                 batch_size=config.classifier_batch_size_train,
                 shuffle=True,
-                num_workers=6,
                 pin_memory=True,
-                prefetch_factor=2
+                num_workers=4,
+                prefetch_factor=4
             ),
         },
         epochs=config.classifier_epochs,

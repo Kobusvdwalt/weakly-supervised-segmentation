@@ -1,6 +1,7 @@
 import torch
 
 def train_model(dataloaders, model, num_epochs, validation_mod=1):
+    step = 0
     for epoch in range(num_epochs):
         model.event({
             'name': 'epoch_start',
@@ -14,6 +15,7 @@ def train_model(dataloaders, model, num_epochs, validation_mod=1):
             })
 
             for batch_no, batch in enumerate(dataloaders[key]):
+                step +=1
                 model.event({
                     'name': 'minibatch',
                     'inputs': batch[0],
@@ -21,7 +23,8 @@ def train_model(dataloaders, model, num_epochs, validation_mod=1):
                     'data': batch[2],
                     'epoch': epoch+1,
                     'phase': key,
-                    'batch': batch_no+1
+                    'batch': batch_no+1,
+                    'step': step
                 })
 
             model.event({

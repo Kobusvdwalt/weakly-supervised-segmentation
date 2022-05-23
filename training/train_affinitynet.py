@@ -1,38 +1,41 @@
+import wandb
 from models.get_model import get_model
+from training.config_manager import Config
 
-def train_affinitynet(
-    dataset_root,
-    model_name = 'affinitynet',
-    epochs=51,
-    image_size=256,
-    batch_size=16,
-):
-    print('Training affinitynet : ', locals())
+def train_affinitynet(config: Config):
+    config_json = config.toDictionary()
+    print('train_affinitynet')
+    print(config_json)
     from training.train import train
     from torch.utils.data.dataloader import DataLoader
     from data.loader_segmentation import Segmentation
     from artifacts.artifact_manager import artifact_manager
 
-    model = get_model(model_name)
+    model = get_model(config.affinity_net_name)
+    
+    wandb.init(entity='kobus_wits', project='wass_affinity', name=config.sweep_id + '_a_' + config.affinity_net_name, config=config_json)
+    wandb.watch(model)
 
     train(
         model=model,
         dataloaders = {
             'train': DataLoader(
                 Segmentation(
-                    dataset_root,
+                    config.classifier_dataset_root,
                     source='train',
-                    source_augmentation='train',
-                    image_size=image_size,
+                    augmentation='train',
+                    image_size=config.affinity_net_image_size,
                     requested_labels=['affinity'],
                     affinity_root=artifact_manager.getDir()
                 ),
-                batch_size=batch_size,
+                batch_size=config.affinity_net_batch_size,
                 shuffle=False,
+                pin_memory=False,
                 num_workers=0,
-                pin_memory=True,
             ),
         },
-        epochs=epochs,
+        epochs=config.affinity_net_epochs,
         validation_mod=10
     )
+
+    wandb.finish()

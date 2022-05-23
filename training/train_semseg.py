@@ -14,7 +14,7 @@ def train_semseg(config: Config):
     import os
 
     model = get_model(config.semseg_name)
-    wandb.init(entity='kobus_wits', project='wass_semseg', name='semseg_' + config.semseg_name, config=config_json)
+    wandb.init(entity='kobus_wits', project='wass_semseg', name=config.sweep_id + '_s_' + config.semseg_name, config=config_json)
     wandb.watch(model)
     model.eval()
     train(

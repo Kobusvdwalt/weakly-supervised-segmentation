@@ -6,7 +6,12 @@ class_list = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'b
 class_count = len(class_list)
 
 def get_augmentation(source, image_size=320):
-    if source == 'val':
+    if source == 'affinity_predict':
+        augmentation = albumentations.Compose(
+        [
+            albumentations.Normalize(always_apply=True)
+        ])
+    elif source == 'val':
         augmentation = albumentations.Compose(
         [
             albumentations.LongestMaxSize(image_size, always_apply=True),

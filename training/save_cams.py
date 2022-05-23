@@ -1,19 +1,16 @@
-
+import wandb
 from numpy import average, float32
 import torch
 import torch.nn.functional as F
 from data.voc2012 import label_to_image
 from metrics.iou import iou
 from models.get_model import get_model
+from training.config_manager import Config
 
-def save_cams(
-    dataset_root,
-    model_name,
-    batch_size=8,
-    image_size=256,
-    use_gt_labels=False,
-):
-    print('Save cams : ', locals())
+def save_cams(config: Config):
+    config_json = config.toDictionary()
+    print('train_semseg')
+    print(config_json)
     import shutil
     import cv2
     import os
@@ -23,20 +20,20 @@ def save_cams(
     from artifacts.artifact_manager import artifact_manager
 
     # Set up model
-    model = get_model(model_name)
+    model = get_model(config.classifier_name)
     model.load()
     model.to(model.device)
 
     # Set up data loader
     dataloader = DataLoader(
         Segmentation(
-            dataset_root,
+            config.classifier_dataset_root,
             source='train',
-            source_augmentation='val',
-            image_size=image_size,
+            augmentation='val',
+            image_size=config.classifier_image_size,
             requested_labels=['classification', 'segmentation']
         ),
-        batch_size=batch_size,
+        batch_size=config.cams_batch_size,
         shuffle=False,
         num_workers=4,
         prefetch_factor=4
@@ -70,7 +67,7 @@ def save_cams(
         # Save out cams
         for cam_no, cam in enumerate(cams):
             # Save out ground truth labels for testing the rest of the system
-            if use_gt_labels:
+            if config.cams_save_gt_labels:
                 cam = labels_in['segmentation'][cam_no][1:]
                 cam = F.adaptive_avg_pool2d(cam, [32, 32]).numpy()
 
@@ -85,19 +82,16 @@ def save_cams(
             gt_mask = np.expand_dims(np.expand_dims(gt_mask, -1), -1)
             cam *= gt_mask
 
-            # Upsample CAM to original image size
-            # - Calculate original image aspect ratio
+            # Scale CAM to match input size
+            cam = np.moveaxis(cam, 0, -1)
+            cam = cv2.resize(cam, (config.classifier_image_size, config.classifier_image_size), interpolation=cv2.INTER_LINEAR)
+            cam = np.moveaxis(cam, -1, 0)
+
+            # - Cut CAM from input size and upscale to original image size
             width = datapacket_in['width'][cam_no].detach().numpy()
             height = datapacket_in['height'][cam_no].detach().numpy()
             content_width = datapacket_in['content_width'][cam_no].detach().numpy()
             content_height = datapacket_in['content_height'][cam_no].detach().numpy()
-
-            # - Upscale CAM to match input size
-            cam = np.moveaxis(cam, 0, -1)
-            cam = cv2.resize(cam, (image_size, image_size), interpolation=cv2.INTER_LINEAR)
-            cam = np.moveaxis(cam, -1, 0)
-
-            # - Cut CAM from input size and upscale to original image size 
             cam = cam[:, 0:content_height, 0:content_width]
             cam = np.moveaxis(cam, 0, -1)
             cam = cv2.resize(cam, (width, height), interpolation=cv2.INTER_LINEAR)
@@ -125,19 +119,14 @@ def save_cams(
             print('Save cam : ', img_no, end='\r')
     print('')
 
-def measure_cams(
-    dataset_root,
-    model_name,
-    batch_size=8,
-    image_size=256,
-    use_gt_labels=False,
-):
-    print('Measure cams : ', locals())
+def measure_cams(config: Config):
+    config_json = config.toDictionary()
+    print('measure_cams')
+    print(config_json)
     import cv2
     import os
     import numpy as np
     from sklearn import metrics
-    import torchmetrics
     from torch.utils.data.dataloader import DataLoader
     from data.loader_segmentation import Segmentation
     from artifacts.artifact_manager import artifact_manager
@@ -146,36 +135,33 @@ def measure_cams(
     # Set up data loader
     dataloader = DataLoader(
         Segmentation(
-            dataset_root,
+            config.classifier_dataset_root,
             source='train',
             augmentation='val',
-            image_size=image_size,
+            image_size=config.classifier_image_size,
             requested_labels=['classification', 'segmentation']
         ),
-        batch_size=batch_size,
+        batch_size=config.cams_batch_size,
         shuffle=False,
+        pin_memory=False,
         num_workers=4,
         prefetch_factor=4
     )
 
+    wandb.init(entity='kobus_wits', project='wass_cams', name=config.sweep_id + '_cam_' + config.classifier_name, config=config_json)
+
     # Get cams directory
     cam_root_path = os.path.join(artifact_manager.getDir(), 'cam')
 
-    # Get results output path
-    cam_result_path = os.path.join(artifact_manager.getDir(), 'cam_results.txt')
-
-    # Open results file
-    cam_result_file = open(cam_result_path, 'w')
-
-    acc_sum = 0
-    mapr_sum = 0
-    miou_sum = 0
     count = 0
 
     for batch_no, batch in enumerate(dataloader):
         inputs_in = batch[0]
         labels_in = batch[1]
         datapacket_in = batch[2]
+
+        if count > 1000:
+            break
 
         for image_no, image_name in enumerate(datapacket_in['image_name']):
             image_width = datapacket_in['width'][image_no].numpy()
@@ -203,17 +189,29 @@ def measure_cams(
 
             predi = cam_with_background
 
-            acc_sum += metrics.accuracy_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten())
-            mapr_sum += metrics.average_precision_score(label[1:].flatten(), predi[1:].flatten())
-            miou_sum += metrics.jaccard_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten(), average='macro')
+            acc = metrics.accuracy_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten())
+            mapr = metrics.average_precision_score(label[1:].flatten(), predi[1:].flatten())
+            miou = metrics.jaccard_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten(), average='macro')
+
+            wandb.log({
+                'accuracy': acc,
+                'mapr': mapr,
+                'miou': miou,
+            }, step=count)
+
+            if count % 10 == 0 and count < 201:
+                image = image.astype(np.float32)
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                predi = label_to_image(predi).astype(np.float32)
+                predi = cv2.cvtColor(predi, cv2.COLOR_BGR2RGB)
+                wandb.log({
+                    'image': wandb.Image(image),
+                    'predi': wandb.Image(predi)
+                }, step=count)
+            
 
             count += 1
 
-            print(count, ' miou : ', miou_sum/count, ' acc : ', acc_sum/count, ' mapr : ', mapr_sum/count)
+            print(count)
 
-            cv2.imshow('image', image)
-            cv2.imshow('cam', cam_with_background[0])
-            cv2.imshow('label', label[0])
-            cv2.waitKey(1)
-
-    cam_result_file.close()
+    wandb.finish()

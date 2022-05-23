@@ -1,4 +1,7 @@
 
+from training.config_manager import Config
+
+
 def _crf_inference(img, probs, t=10, scale_factor=1, labels=21):
     import pydensecrf.densecrf as dcrf
     from pydensecrf.utils import unary_from_softmax
@@ -53,13 +56,10 @@ def _crf_with_alpha(image, cam, alpha):
 
     return cam_out
 
-def save_cams_crf(
-    dataset_root,
-    image_size=256,
-    low_alpha=4,
-    high_alpha=32,
-):
-    print('Apply CRF on cams : ', locals())
+def save_cams_crf(config: Config):
+    config_json = config.toDictionary()
+    print('save_cams_crf')
+    print(config_json)
     import shutil
     import cv2
     import os
@@ -74,9 +74,9 @@ def save_cams_crf(
     # Set up data loader
     dataloader = DataLoader(
         Segmentation(
-            dataset_root,
+            config.classifier_dataset_root,
             source='train',
-            image_size=image_size
+            image_size=config.classifier_image_size
         ),
         batch_size=16,
         shuffle=False,
@@ -113,11 +113,11 @@ def save_cams_crf(
 
             image = cv2.imread(datapacket_in['image_path'][image_no])
 
-            cam_la = _crf_with_alpha(image, cam_reshaped, low_alpha)
+            cam_la = _crf_with_alpha(image, cam_reshaped, config.cams_crf_alpha_low)
             cam_la = cam_la.reshape(cam_la.shape[0] * cam_la.shape[1], cam_la.shape[2])
             cv2.imwrite(os.path.join(cam_la_path, image_name + '.png'), cam_la * 255)
 
-            cam_ha = _crf_with_alpha(image, cam_reshaped, high_alpha)
+            cam_ha = _crf_with_alpha(image, cam_reshaped, config.cams_crf_alpha_high)
             cam_ha = cam_ha.reshape(cam_ha.shape[0] * cam_ha.shape[1], cam_ha.shape[2])
             cv2.imwrite(os.path.join(cam_ha_path, image_name + '.png'), cam_ha * 255)
 
