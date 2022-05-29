@@ -4,3 +4,4 @@ albumentations
 pycocotools-windows
 wandb
 pydensecrf-1.0rc2
+scikit-learn

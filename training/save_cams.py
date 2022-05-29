@@ -1,10 +1,12 @@
+import cv2
 import wandb
-from numpy import average, float32
 import torch
 import torch.nn.functional as F
-from data.voc2012 import label_to_image
-from metrics.iou import iou
+import numpy as np
+from sklearn import metrics
+from data.voc2012 import image_to_label, label_to_image
 from models.get_model import get_model
+from tools.average_meter import AverageMeter
 from training.config_manager import Config
 
 def save_cams(config: Config):
@@ -22,6 +24,7 @@ def save_cams(config: Config):
     # Set up model
     model = get_model(config.classifier_name)
     model.load()
+    model.eval()
     model.to(model.device)
 
     # Set up data loader
@@ -33,7 +36,7 @@ def save_cams(config: Config):
             image_size=config.classifier_image_size,
             requested_labels=['classification', 'segmentation']
         ),
-        batch_size=config.cams_batch_size,
+        batch_size=config.cams_produce_batch_size,
         shuffle=False,
         num_workers=4,
         prefetch_factor=4
@@ -101,7 +104,7 @@ def save_cams(config: Config):
             cam_max = np.max(cam, (1, 2), keepdims=True)
             cam_norm = cam / (cam_max + 1e-5)
 
-            cam_bg = np.power(1 - np.max(cam_norm, axis=0, keepdims=True), 4)
+            cam_bg = (1 - np.max(cam_norm, axis=0, keepdims=True)) ** config.cams_bg_alpha
             cam_with_bg = np.concatenate((cam_bg, cam_norm), axis=0)
             label_cam = label_to_image(cam_with_bg)
 
@@ -119,99 +122,115 @@ def save_cams(config: Config):
             print('Save cam : ', img_no, end='\r')
     print('')
 
+
+def _measure_sample(payload):
+    count = payload['count']
+    image_path = payload['image_path']
+    cam_path = payload['cam_path']
+    label_path = payload['label_path']
+    predi_path = payload['predi_path']
+    
+    label = cv2.imread(label_path)
+    predi = cv2.imread(predi_path)
+
+    label = image_to_label(label)
+    predi = image_to_label(predi)
+
+    accuracy = metrics.accuracy_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten())
+    mapr = metrics.average_precision_score(label[1:].flatten(), predi[1:].flatten())
+    miou = metrics.jaccard_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten(), average='macro')
+
+    log = {
+        'accuracy': accuracy,
+        'mapr': mapr,
+        'miou': miou,
+        'count': count
+    }
+
+    if count < 8:
+        raw = cv2.imread(cam_path)
+        image = cv2.imread(image_path)
+        image = image.astype(np.float32)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        predi = label_to_image(predi).astype(np.float32)
+        predi = cv2.cvtColor(predi, cv2.COLOR_BGR2RGB)
+        log['raw_' + str(count)] = wandb.Image(raw)
+        log['img_' + str(count)] = wandb.Image(image)
+        log['pred_' + str(count)] = wandb.Image(predi)
+        log['count'] = 0
+
+    return log
+
+
 def measure_cams(config: Config):
     config_json = config.toDictionary()
     print('measure_cams')
     print(config_json)
-    import cv2
     import os
-    import numpy as np
-    from sklearn import metrics
+    
     from torch.utils.data.dataloader import DataLoader
     from data.loader_segmentation import Segmentation
     from artifacts.artifact_manager import artifact_manager
-    from data.voc2012 import image_to_label
+    from multiprocessing import Pool
 
     # Set up data loader
     dataloader = DataLoader(
         Segmentation(
-            config.classifier_dataset_root,
+            config.eval_dataset_root,
             source='train',
             augmentation='val',
             image_size=config.classifier_image_size,
             requested_labels=['classification', 'segmentation']
         ),
-        batch_size=config.cams_batch_size,
+        batch_size=config.cams_measure_batch_size,
         shuffle=False,
         pin_memory=False,
-        num_workers=4,
-        prefetch_factor=4
+        num_workers=2,
+        prefetch_factor=2
     )
-
-    wandb.init(entity='kobus_wits', project='wass_cams', name=config.sweep_id + '_cam_' + config.classifier_name, config=config_json)
 
     # Get cams directory
     cam_root_path = os.path.join(artifact_manager.getDir(), 'cam')
+    label_cam_path = os.path.join(artifact_manager.getDir(), 'labels_cam')
 
     count = 0
+    
+    wandb.init(entity='kobus_wits', project='wass_measure_cams', name=config.sweep_id + '_cam_' + config.classifier_name, config=config_json)
+    avg_meter = AverageMeter('accuracy', 'mapr', 'miou')
 
     for batch_no, batch in enumerate(dataloader):
-        inputs_in = batch[0]
-        labels_in = batch[1]
-        datapacket_in = batch[2]
+        datapacket = batch[2]
 
-        if count > 1000:
-            break
+        payloads = []
+        for image_no, image_name in enumerate(datapacket['image_name']):
+            payload = {
+                'count': count,
+                'image_path': datapacket['image_path'][image_no],
+                'label_path': datapacket['label_path'][image_no],
+                'predi_path': os.path.join(label_cam_path, image_name + '.png'),
+                'cam_path': os.path.join(cam_root_path, image_name + '.png'),
+            }
+            payloads.append(payload)
+            count += 1
+            print('Measure cam : ', count, end='\r')
 
-        for image_no, image_name in enumerate(datapacket_in['image_name']):
-            image_width = datapacket_in['width'][image_no].numpy()
-            image_height = datapacket_in['height'][image_no].numpy()
-            channels = labels_in['classification'].shape[1]
+        with Pool(8) as poel:
+            logs = poel.map(_measure_sample, payloads)
 
-            cam_path = os.path.join(cam_root_path, image_name + '.png')
-            cam = cv2.imread(cam_path, cv2.IMREAD_GRAYSCALE)
+            for log in logs:
+                avg_meter.add({
+                    'accuracy': log['accuracy'],
+                    'mapr': log['mapr'],
+                    'miou': log['miou'],
+                })
 
-            cam_reshaped = np.reshape(cam, ((channels, image_height, image_width)))
-            cam_reshaped = cam_reshaped / 255.0
-
-            cam_background = np.power(1 - np.max(cam_reshaped, axis=0, keepdims=True), 4)
-            cam_with_background = np.concatenate((cam_background, cam_reshaped), axis=0)
-
-            cam_reshaped_max = np.argmax(cam_with_background, 0)
-            for i in range(0, cam_with_background.shape[0]):
-                indicies = cam_reshaped_max == i
-                cam_with_background[i, :] = 0
-                cam_with_background[i, indicies] = 1
-
-            image = cv2.imread(datapacket_in['image_path'][image_no])
-            label = cv2.imread(datapacket_in['label_path'][image_no])
-            label = image_to_label(label)
-
-            predi = cam_with_background
-
-            acc = metrics.accuracy_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten())
-            mapr = metrics.average_precision_score(label[1:].flatten(), predi[1:].flatten())
-            miou = metrics.jaccard_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten(), average='macro')
+                if log['count'] < 8:
+                    wandb.log(log, step=log['count'])
 
             wandb.log({
-                'accuracy': acc,
-                'mapr': mapr,
-                'miou': miou,
-            }, step=count)
-
-            if count % 10 == 0 and count < 201:
-                image = image.astype(np.float32)
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                predi = label_to_image(predi).astype(np.float32)
-                predi = cv2.cvtColor(predi, cv2.COLOR_BGR2RGB)
-                wandb.log({
-                    'image': wandb.Image(image),
-                    'predi': wandb.Image(predi)
-                }, step=count)
-            
-
-            count += 1
-
-            print(count)
+                'accuracy': avg_meter.get('accuracy'),
+                'mapr': avg_meter.get('mapr'),
+                'miou': avg_meter.get('miou'),
+            })
 
     wandb.finish()

@@ -1,11 +1,5 @@
-
-
-# class PSASweepInput:
-
-from time import time
-
-
 def start():
+    from time import time
     from training.train_classifier import train_classifier
     from training.train_affinitynet import train_affinitynet
 
@@ -13,6 +7,7 @@ def start():
     from training.save_cams import measure_cams
     from training.save_cams_crf import save_cams_crf
     from training.save_cams_random_walk import save_cams_random_walk
+    from training.save_cams_random_walk import measure_random_walk
     from training.train_semseg import train_semseg
     from training.save_semseg import save_semseg
     from training.save_semseg import measure_semseg
@@ -22,22 +17,18 @@ def start():
 
     sweeps = [
         Config(
+            eval_dataset_root='datasets/generated/voc',
             classifier_dataset_root='datasets/generated/voc_aug',
             classifier_name='vgg16',
-            classifier_epochs=10,
+            classifier_epochs=1,
             classifier_batch_size_train=32,
             classifier_pretrained=True,
             classifier_pretrained_unfreeze=10,
             
-            cams_batch_size=32,
+            cams_produce_batch_size=32,
+            cams_measure_batch_size=64,
+            affinity_net_batch_size=10,
         ),
-        # Config(
-        #     semseg_dataset_root='datasets/generated/voc_aug',
-        #     semseg_name='deeplab',
-        #     semseg_pretrained=True,
-        #     semseg_batch_size=4,
-        #     semseg_epochs=1
-        # ),
     ]
 
     for sweep_index, sweep in enumerate(sweeps):
@@ -46,7 +37,7 @@ def start():
         config_manager.setConfig(sweep)
         print(f'Sweep start {sweep_index}/{len(sweeps)}')
 
-        ########### CAMS
+        # ########## CAMS
         # # Train the classifier
         # train_classifier(sweep)
 
@@ -56,22 +47,25 @@ def start():
         # # Measure cams
         # measure_cams(sweep)
 
-        ########### AFFINITY NET
+        # ########## AFFINITY NET
         # # Apply DCRF on CAMs
         # save_cams_crf(sweep)
 
         # # Train AffinityNet
         # train_affinitynet(sweep)
 
-        # Perform random walk
-        save_cams_random_walk(sweep)
+        # # Perform random walk
+        # save_cams_random_walk(sweep)
+
+        # Measure random walk
+        measure_random_walk(sweep)
         
-        ########### SEM SEG
+        # ########## SEM SEG
         # # Train segmentation network
         # train_semseg(sweep)
 
         # # Save segmentation outputs
         # save_semseg(sweep)
 
-        # Measure segmentation outputs
-        measure_semseg(sweep)
+        # # Measure segmentation outputs
+        # measure_semseg(sweep)

@@ -47,7 +47,7 @@ class Vgg16Aff(ModelBase):
         super(Vgg16Aff, self).__init__(**kwargs)
         self.class_count = class_count
 
-        self.features = build_vgg_features(pretrained=True, unfreeze_from=2)
+        self.features = build_vgg_features(pretrained=True, unfreeze_from=0)
         self.features[4] = torch.nn.MaxPool2d(3, 2, 1)
         self.features[9] = torch.nn.MaxPool2d(3, 2, 1)
         self.features[16] = torch.nn.MaxPool2d(3, 2, 1)

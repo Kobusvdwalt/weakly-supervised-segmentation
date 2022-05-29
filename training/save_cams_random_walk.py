@@ -1,18 +1,24 @@
 
+
+
+import os
+import cv2
+import numpy as np
 import torch
 import torch.nn.functional as F
-from data.voc2012 import label_to_image
+import wandb
+from data.voc2012 import image_to_label, label_to_image
 from models.get_model import get_model
+from tools.average_meter import AverageMeter
 from training.config_manager import Config
+from sklearn import metrics
 
 def save_cams_random_walk(config: Config):
     config_json = config.toDictionary()
     print('save_cams_random_walk')
     print(config_json)
     import shutil
-    import cv2
     import os
-    import numpy as np
     from torch.utils.data.dataloader import DataLoader
     from data.loader_segmentation import Segmentation
     from artifacts.artifact_manager import artifact_manager
@@ -20,6 +26,7 @@ def save_cams_random_walk(config: Config):
     # Set up model
     model = get_model(config.affinity_net_name)
     model.load()
+    model.eval()
     model.to(model.device)
 
     # Set up data loader
@@ -33,8 +40,8 @@ def save_cams_random_walk(config: Config):
         ),
         batch_size=1,
         shuffle=False,
-        num_workers=4,
-        prefetch_factor=4
+        num_workers=2,
+        prefetch_factor=2
     )
 
     # Get cam source directory
@@ -46,18 +53,18 @@ def save_cams_random_walk(config: Config):
         shutil.rmtree(labels_rw_path)
     os.makedirs(labels_rw_path)
 
+    count = 0
+
     for batch_no, batch in enumerate(dataloader):
-        inputs_in = batch[0]
-        labels_in = batch[1]
-        datapacket_in = batch[2]
+        inputs = batch[0]
+        labels = batch[1]
+        datapacket = batch[2]
 
-        image = inputs_in['image'].cuda(non_blocking=True)
-
-        for image_no, image_name in enumerate(datapacket_in['image_name']):
-            print('image name ', image_name)
-            image_width = datapacket_in['width'][image_no].numpy()
-            image_height = datapacket_in['height'][image_no].numpy()
-            channels = labels_in['classification'].shape[1]
+        for image_no, image_name in enumerate(datapacket['image_name']):
+            image = inputs['image'].cuda(non_blocking=True)
+            image_width = datapacket['width'][image_no].numpy()
+            image_height = datapacket['height'][image_no].numpy()
+            channels = labels['classification'].shape[1]
             
             # Pad image
             image_width_padded = int(np.ceil(image_width/8)*8)
@@ -74,7 +81,7 @@ def save_cams_random_walk(config: Config):
             cam = cam / 255.0
 
             # Build cam background
-            cam_background = np.power(1 - np.max(cam, axis=0, keepdims=True), 4)
+            cam_background = (1 - np.max(cam, (0), keepdims=True))**config.affinity_net_bg_alpha
             cam = np.concatenate((cam_background, cam), axis=0)
             cam = cam.astype(np.float32)
 
@@ -89,30 +96,13 @@ def save_cams_random_walk(config: Config):
                     'name': 'infer_aff_net_dense',
                     'image': image_padded,
                 })
-                aff_mat = torch.pow(aff_mat, 8)
+                aff_mat = torch.pow(aff_mat, config.affinity_net_beta)
 
             trans_mat = aff_mat / torch.sum(aff_mat, dim=0, keepdim=True)
-            for _ in range(8):
+            for _ in range(config.affinity_net_log_t):
                 trans_mat = torch.matmul(trans_mat, trans_mat)
 
             cam_pooled = F.avg_pool2d(torch.from_numpy(cam_padded), 8, 8)
-
-            # cam_vis = cam_pooled[0].clone().cpu().numpy()
-
-            # def get_aff_sum(aff_in):
-            #     aff_lab = np.sum(aff_in, axis=0) / aff_in.shape[0]
-            #     aff_lab = np.reshape(aff_lab, (cam_vis.shape[0], cam_vis.shape[1]))
-            #     return aff_lab
-
-            # aff_vis = get_aff_sum(trans_mat.clone().cpu().numpy())
-            # aff_vis = cv2.resize(aff_vis, (aff_vis.shape[1] * 8, aff_vis.shape[0] * 8), interpolation=cv2.INTER_NEAREST)
-            # aff_vis_normed = aff_vis - np.min(aff_vis)
-            # aff_vis_normed = aff_vis_normed / (np.max(aff_vis_normed) + 1e-5)
-            # cv2.imshow('aff_vis', aff_vis * 256)
-            # cv2.imshow('aff_vis_normed', aff_vis_normed)            
-            # cam_vis = cv2.resize(cam_vis, (cam_vis.shape[1] * 8, cam_vis.shape[0] * 8), interpolation=cv2.INTER_NEAREST)
-            # cv2.imshow('cam_bg', cam_vis)
-            # cv2.waitKey(0)
 
             cam_vec = cam_pooled.view(21, -1)
 
@@ -125,3 +115,105 @@ def save_cams_random_walk(config: Config):
             label_rw = label_to_image(cam_rw)
 
             cv2.imwrite(os.path.join(labels_rw_path, image_name + '.png'), label_rw * 255)
+
+            count += 1
+            print('Save cam : ', count, end='\r')
+
+    print('')
+
+
+
+
+
+
+
+def _measure_sample(payload):
+    count = payload['count']
+    label_path = payload['label_path']
+    predi_path = payload['predi_path']
+
+    label = cv2.imread(label_path)
+    predi = cv2.imread(predi_path)
+
+    label = image_to_label(label)
+    predi = image_to_label(predi)
+
+    accuracy = metrics.accuracy_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten())
+    mapr = metrics.average_precision_score(label[1:].flatten(), predi[1:].flatten())
+    miou = metrics.jaccard_score(np.argmax(label, 0).flatten(), np.argmax(predi, 0).flatten(), average='macro')
+
+    return {
+        'accuracy': accuracy,
+        'mapr': mapr,
+        'miou': miou,
+        'count': count
+    }
+
+def measure_random_walk(config: Config):
+    config_json = config.toDictionary()
+    print('measure_cams')
+    print(config_json)
+    import os
+    
+    from torch.utils.data.dataloader import DataLoader
+    from data.loader_segmentation import Segmentation
+    from artifacts.artifact_manager import artifact_manager
+    from multiprocessing import Pool
+
+    # Set up data loader
+    dataloader = DataLoader(
+        Segmentation(
+            config.classifier_dataset_root,
+            source='train',
+            augmentation='val',
+            image_size=config.classifier_image_size,
+            requested_labels=['classification', 'segmentation']
+        ),
+        batch_size=config.affinity_net_batch_size,
+        shuffle=False,
+        num_workers=2,
+        prefetch_factor=2
+    )
+
+    # Get cams directory
+    labels_rw_root_path = os.path.join(artifact_manager.getDir(), 'labels_rw')
+
+    count = 0
+    
+    wandb.init(entity='kobus_wits', project='wass_measure_cams_rw', name=config.sweep_id + '_cam_' + config.classifier_name, config=config_json)
+    avg_meter = AverageMeter('accuracy', 'mapr', 'miou')
+
+    for batch_no, batch in enumerate(dataloader):
+        datapacket_in = batch[2]
+
+        payloads = []
+        for image_no, image_name in enumerate(datapacket_in['image_name']):
+            payload = {
+                'count': count,
+                'label_path': datapacket_in['label_path'][image_no],
+                'predi_path': os.path.join(labels_rw_root_path, image_name + '.png'),
+            }
+            payloads.append(payload)
+            count += 1
+            print('Measure cam RW : ', count, end='\r')
+
+        with Pool(8) as poel:
+            logs = poel.map(_measure_sample, payloads)
+
+            for log in logs:
+                avg_meter.add({
+                    'accuracy': log['accuracy'],
+                    'mapr': log['mapr'],
+                    'miou': log['miou'],
+                })
+
+                if log['count'] < 8:
+                    wandb.log(log, step=log['count'])
+
+            wandb.log({
+                'accuracy': avg_meter.get('accuracy'),
+                'mapr': avg_meter.get('mapr'),
+                'miou': avg_meter.get('miou'),
+            })
+
+    wandb.finish()
