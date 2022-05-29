@@ -31,7 +31,8 @@ def train_affinitynet(config: Config):
                 batch_size=config.affinity_net_batch_size,
                 shuffle=False,
                 pin_memory=False,
-                num_workers=0,
+                num_workers=4,
+                prefetch_factor=4
             ),
         },
         epochs=config.affinity_net_epochs,

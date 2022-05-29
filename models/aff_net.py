@@ -42,9 +42,9 @@ def get_indices_of_pairs(radius, size):
 
     return indices_from, concat_indices_to
 
-class Vgg16Aff(ModelBase):
+class AffNet(ModelBase):
     def __init__(self, class_count=20, **kwargs):
-        super(Vgg16Aff, self).__init__(**kwargs)
+        super(AffNet, self).__init__(**kwargs)
         self.class_count = class_count
 
         self.features = build_vgg_features(pretrained=True, unfreeze_from=0)
@@ -52,7 +52,24 @@ class Vgg16Aff(ModelBase):
         self.features[9] = torch.nn.MaxPool2d(3, 2, 1)
         self.features[16] = torch.nn.MaxPool2d(3, 2, 1)
         self.features[23] = torch.nn.MaxPool2d(3, 1, 1)
-        self.features[28] = torch.nn.Conv2d(512, 448, 1)
+
+        self.features[24] = torch.nn.Conv2d(512, 512, 3, padding = 2, dilation = 2)
+        self.features[26] = torch.nn.Conv2d(512, 512, 3, padding = 2, dilation = 2)
+        self.features[28] = torch.nn.Conv2d(512, 512, 3, padding = 2, dilation = 2)
+
+        self.dimreduce_1 = torch.nn.Conv2d(256, 64, 1, bias=False)
+        self.dimreduce_2 = torch.nn.Conv2d(512, 128, 1, bias=False)
+        self.dimreduce_3 = torch.nn.Conv2d(512, 256, 1, bias=False)
+        self.dimreduce_final = torch.nn.Conv2d(448, 448, 1, bias=False)
+
+        self.pool1 = torch.nn.AvgPool2d(3, 2, 1)
+
+        self.intermediate_outputs = []
+        def output_hook(module, input, output):
+            self.intermediate_outputs.append(output)
+
+        self.features[15].register_forward_hook(output_hook)
+        self.features[22].register_forward_hook(output_hook)
         
         self.upsample = torch.nn.Upsample(scale_factor=16, mode='bilinear')
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4, weight_decay=0.0001)
@@ -65,7 +82,23 @@ class Vgg16Aff(ModelBase):
         self.comp_image = None
 
     def get_affinity(self, image, dense=False):
-        x = self.features(image)
+        output = self.features(image)
+
+        l1 = self.intermediate_outputs[0]
+        l1 = self.pool1(l1)
+        l1 = self.dimreduce_1(l1)
+
+        l2 = self.intermediate_outputs[1]
+        l2 = self.dimreduce_2(l2)
+
+        l3 = output
+        l3 = self.dimreduce_3(l3)
+
+        comb = torch.cat([l1, l2, l3], dim=1)
+        comb = self.dimreduce_final(comb)
+        x = comb
+
+        self.intermediate_outputs.clear()
 
         if x.size(2) == self.predefined_featuresize and x.size(3) == self.predefined_featuresize:
             ind_from = self.ind_from
@@ -74,7 +107,7 @@ class Vgg16Aff(ModelBase):
             ind_from, ind_to = get_indices_of_pairs(5, (x.size(2), x.size(3)))
             ind_from = torch.from_numpy(ind_from)
             ind_to = torch.from_numpy(ind_to)
-        
+         
         x = x.view(x.size(0), x.size(1), -1)
 
         ff = torch.index_select(x, dim=2, index=ind_from.cuda(non_blocking=True))

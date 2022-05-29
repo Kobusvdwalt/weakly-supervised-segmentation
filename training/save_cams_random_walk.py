@@ -135,6 +135,8 @@ def _measure_sample(payload):
     label = cv2.imread(label_path)
     predi = cv2.imread(predi_path)
 
+    predi = cv2.resize(predi, (label.shape[1], label.shape[0]), interpolation=cv2.INTER_NEAREST)
+
     label = image_to_label(label)
     predi = image_to_label(predi)
 
@@ -163,7 +165,7 @@ def measure_random_walk(config: Config):
     # Set up data loader
     dataloader = DataLoader(
         Segmentation(
-            config.classifier_dataset_root,
+            config.eval_dataset_root,
             source='train',
             augmentation='val',
             image_size=config.classifier_image_size,
@@ -187,6 +189,7 @@ def measure_random_walk(config: Config):
         datapacket_in = batch[2]
 
         payloads = []
+        logs = []
         for image_no, image_name in enumerate(datapacket_in['image_name']):
             payload = {
                 'count': count,
@@ -194,26 +197,27 @@ def measure_random_walk(config: Config):
                 'predi_path': os.path.join(labels_rw_root_path, image_name + '.png'),
             }
             payloads.append(payload)
+            logs.append(_measure_sample(payload))
             count += 1
             print('Measure cam RW : ', count, end='\r')
 
-        with Pool(8) as poel:
-            logs = poel.map(_measure_sample, payloads)
+        # with Pool(8) as poel:
+        # logs = poel.map(_measure_sample, payloads)
 
-            for log in logs:
-                avg_meter.add({
-                    'accuracy': log['accuracy'],
-                    'mapr': log['mapr'],
-                    'miou': log['miou'],
-                })
-
-                if log['count'] < 8:
-                    wandb.log(log, step=log['count'])
-
-            wandb.log({
-                'accuracy': avg_meter.get('accuracy'),
-                'mapr': avg_meter.get('mapr'),
-                'miou': avg_meter.get('miou'),
+        for log in logs:
+            avg_meter.add({
+                'accuracy': log['accuracy'],
+                'mapr': log['mapr'],
+                'miou': log['miou'],
             })
+
+            if log['count'] < 8:
+                wandb.log(log, step=log['count'])
+
+        wandb.log({
+            'accuracy': avg_meter.get('accuracy'),
+            'mapr': avg_meter.get('mapr'),
+            'miou': avg_meter.get('miou'),
+        })
 
     wandb.finish()

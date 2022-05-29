@@ -27,7 +27,7 @@ def start():
             
             cams_produce_batch_size=32,
             cams_measure_batch_size=64,
-            affinity_net_batch_size=10,
+            affinity_net_batch_size=8,
         ),
     ]
 
@@ -52,13 +52,13 @@ def start():
         # save_cams_crf(sweep)
 
         # # Train AffinityNet
-        # train_affinitynet(sweep)
+        train_affinitynet(sweep)
 
         # # Perform random walk
         # save_cams_random_walk(sweep)
 
-        # Measure random walk
-        measure_random_walk(sweep)
+        # # Measure random walk
+        # measure_random_walk(sweep)
         
         # ########## SEM SEG
         # # Train segmentation network

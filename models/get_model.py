@@ -19,8 +19,8 @@ def get_model(model_name):
         return model
 
     if model_name == 'affinitynet':
-        from models.vgg16_aff import Vgg16Aff
-        model = Vgg16Aff(name="affinitynet_vgg16")
+        from models.aff_net import AffNet
+        model = AffNet(name="affinitynet")
         return model
 
     if model_name == 'wasscam':
