@@ -24,6 +24,7 @@ def save_semseg(
     model.load()
     model.to(model.device)
     model.train(False)
+    model.eval()
 
     # Set up data loader
     dataloader = DataLoader(
@@ -37,7 +38,7 @@ def save_semseg(
         batch_size=batch_size,
         shuffle=False,
         num_workers=4,
-        prefetch_factor=4,
+        prefetch_factor=2,
     )
 
     # Clear and create destination directory

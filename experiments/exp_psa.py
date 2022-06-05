@@ -27,7 +27,10 @@ def start():
             
             cams_produce_batch_size=32,
             cams_measure_batch_size=64,
+
             affinity_net_batch_size=8,
+
+            semseg_dataset_root='datasets/generated/voc_aug'
         ),
     ]
 
@@ -37,7 +40,7 @@ def start():
         config_manager.setConfig(sweep)
         print(f'Sweep start {sweep_index}/{len(sweeps)}')
 
-        # ########## CAMS
+        ########## CAMS
         # # Train the classifier
         # train_classifier(sweep)
 
@@ -52,7 +55,7 @@ def start():
         # save_cams_crf(sweep)
 
         # # Train AffinityNet
-        train_affinitynet(sweep)
+        # train_affinitynet(sweep)
 
         # # Perform random walk
         # save_cams_random_walk(sweep)
@@ -61,11 +64,11 @@ def start():
         # measure_random_walk(sweep)
         
         # ########## SEM SEG
-        # # Train segmentation network
-        # train_semseg(sweep)
+        # Train segmentation network
+        train_semseg(sweep)
 
-        # # Save segmentation outputs
-        # save_semseg(sweep)
+        # Save segmentation outputs
+        save_semseg(sweep)
 
-        # # Measure segmentation outputs
-        # measure_semseg(sweep)
+        # Measure segmentation outputs
+        measure_semseg(sweep)

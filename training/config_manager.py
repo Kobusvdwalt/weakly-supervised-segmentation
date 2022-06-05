@@ -31,7 +31,7 @@ class Config:
         affinity_net_beta: int = 8,                     # Power strength
 
         # Segmentation
-        semseg_name: str = 'name',
+        semseg_name: str = 'deeplab',
         semseg_batch_size = 4,
         semseg_dataset_root = '/',
         semseg_image_size = 513,

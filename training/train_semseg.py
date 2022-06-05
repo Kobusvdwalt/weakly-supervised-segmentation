@@ -16,7 +16,6 @@ def train_semseg(config: Config):
     model = get_model(config.semseg_name)
     wandb.init(entity='kobus_wits', project='wass_semseg', name=config.sweep_id + '_s_' + config.semseg_name, config=config_json)
     wandb.watch(model)
-    model.eval()
     train(
         model=model,
         dataloaders = {
@@ -27,11 +26,11 @@ def train_semseg(config: Config):
                     augmentation='train',
                     image_size=config.semseg_image_size,
                     requested_labels=['segmentation', 'pseudo'],
-                    pseudo_root=os.path.join(artifact_manager.getDir(), 'labels_cam')
+                    pseudo_root=os.path.join(artifact_manager.getDir(), 'labels_rw')
                 ),
                 batch_size=config.semseg_batch_size,
                 shuffle=True,
-                num_workers=6,
+                num_workers=4,
                 pin_memory=True,
                 prefetch_factor=2
             ),

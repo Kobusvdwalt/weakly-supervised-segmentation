@@ -14,13 +14,16 @@ class Vgg16GAP(ModelBase):
 
         config = config_manager.getConfig()
         self.features = build_vgg_features(pretrained=config.classifier_pretrained, unfreeze_from=config.classifier_pretrained_unfreeze)
-        self.drop_3 = torch.nn.Dropout2d(p=0.5)
-        self.conv_3 = torch.nn.Conv2d(512, self.class_count, 1, bias=False)
+        self.features[24] = torch.nn.Conv2d(512, 512, 3, padding = 2, dilation = 2)
+        self.features[26] = torch.nn.Conv2d(512, 512, 3, padding = 2, dilation = 2)
+        self.features[28] = torch.nn.Conv2d(512, 512, 3, padding = 2, dilation = 2)
+        self.drop = torch.nn.Dropout2d(p=0.5)
+        self.conv = torch.nn.Conv2d(512, self.class_count, 1, bias=False)
         self.pool = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))
         self.flat = torch.nn.Flatten(1, 3)
 
         self.loss = torch.nn.BCEWithLogitsLoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-5)
 
     def segment(self, image):
         x = self.features(image)
@@ -31,7 +34,7 @@ class Vgg16GAP(ModelBase):
 
     def classify(self, image):
         x = self.features(image)
-        x = self.conv_3(self.drop_3(x))
+        x = self.conv(self.drop(x))
         x = self.pool(x)
         x = self.flat(x)
         return x

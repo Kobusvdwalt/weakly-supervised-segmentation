@@ -1,1 +1,0 @@
-The checkpoints for the classification network are stored here
