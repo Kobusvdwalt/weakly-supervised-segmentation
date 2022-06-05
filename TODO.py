@@ -17,7 +17,7 @@ conda activate pytorch
 
 # Running Commands Directly
 """
-srun -N6 -p batch -l /bin/hostname
+srun -N6 -p batch -l /bin/hostname iaCi7EeR
 srun -N2 -p biggpu -l cat /proc/cpuinfo | grep model
 srun -N4 -p ha -l /usr/bin/uptime
 
@@ -34,6 +34,7 @@ sbatch --job-name=vgg16u3 --partition=batch --wrap="python train_voc_vgg16_unfre
 # Train on biggpu
 """
 sbatch --job-name=wsgan --partition=biggpu --wrap="python train_voc_unet_adverserial.py" --output=wsgan.out
+sbatch --job-name=wsgan --partition=biggpu --wrap="python main.py" --output=wsgan.out
 """
 
 # Copy from WITS cluster to machine

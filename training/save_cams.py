@@ -11,7 +11,7 @@ from training.config_manager import Config
 
 def save_cams(config: Config):
     config_json = config.toDictionary()
-    print('train_semseg')
+    print('save_cams')
     print(config_json)
     import shutil
     import cv2
