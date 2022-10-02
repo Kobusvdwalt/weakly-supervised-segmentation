@@ -1,3 +1,4 @@
+import os
 from torch.utils.data import Dataset
 from random import Random
 import numpy as np
@@ -15,17 +16,16 @@ def read_file(file_path):
     return lines_formatted
 
 class VOCErase(Dataset):
-    def __init__(self, source='train', type='none', size=0, dataset='voc'):
-        if dataset == 'voc':
-            dataset_root = 'datasets/voc2012/ImageSets/Segmentation/'
-            self.image_root = 'datasets/voc2012/JPEGImages/'
-            self.label_root = 'datasets/voc2012/SegmentationClass/'
-        if dataset == 'voco':
-            dataset_root = 'datasets/voco/'
-            self.image_root = 'datasets/voco/images/'
-            self.label_root = 'datasets/voco/labels/'
+    def __init__(self, 
+        dataset_root,
+        source='train',
+        type='none',
+        size=0
+    ):
+        self.image_root = dataset_root + '/images'
+        self.label_root = dataset_root + '/labels'
 
-        images = read_file(dataset_root + source + '.txt')
+        images = read_file(dataset_root + '/' + source + '.txt')
         labels = images
 
         self.type = type
@@ -42,8 +42,8 @@ class VOCErase(Dataset):
     def __getitem__(self, sample):
         # Read images and perform augmentation
         image_name = self.labels[sample]
-        image = cv2.imread(self.image_root + image_name + '.jpg')
-        label = cv2.imread(self.label_root + image_name + '.png')
+        image = cv2.imread(os.path.join(self.image_root, image_name + '.jpg'))
+        label = cv2.imread(os.path.join(self.label_root, image_name + '.png'))
 
         image_width = image.shape[1]
         image_height = image.shape[0]
@@ -107,7 +107,7 @@ class VOCErase(Dataset):
             rng = Random(sample)
             for l in label[1:]:
                 m = destroy_shape(l, self.size)
-                image[:, m > 0.5] = rng.random()
+                image[:, m > 0.5] = 0.2 + rng.random() * 0.4
 
         if self.type == 'mask_random_bg':
             image = np.ones(image.shape) * 0.5

@@ -16,12 +16,29 @@ def start():
     from training.config_manager import config_manager
 
     sweeps = [
+        # Config(
+        #     eval_dataset_root='datasets/generated/voc',
+        #     classifier_dataset_root='datasets/generated/voc_aug',
+        #     classifier_name='vgg16',
+        #     classifier_epochs=1,
+        #     classifier_batch_size_train=32,
+        #     classifier_pretrained=True,
+        #     classifier_pretrained_unfreeze=10,
+            
+        #     cams_produce_batch_size=32,
+        #     cams_measure_batch_size=64,
+
+        #     affinity_net_batch_size=8,
+
+        #     semseg_dataset_root='datasets/generated/voc_aug'
+        # ),
+
         Config(
             eval_dataset_root='datasets/generated/voc',
             classifier_dataset_root='datasets/generated/voc_aug',
-            classifier_name='vgg16',
-            classifier_epochs=1,
-            classifier_batch_size_train=32,
+            classifier_name='wasscam',
+            classifier_epochs=100,
+            classifier_batch_size_train=8,
             classifier_pretrained=True,
             classifier_pretrained_unfreeze=10,
             
@@ -41,8 +58,8 @@ def start():
         print(f'Sweep start {sweep_index}/{len(sweeps)}')
 
         ########## CAMS
-        # # Train the classifier
-        # train_classifier(sweep)
+        # Train the classifier
+        train_classifier(sweep)
 
         # # Save out the CAMs
         # save_cams(sweep)
@@ -63,12 +80,12 @@ def start():
         # # Measure random walk
         # measure_random_walk(sweep)
         
-        # ########## SEM SEG
-        # Train segmentation network
-        train_semseg(sweep)
+        # # ########## SEM SEG
+        # # Train segmentation network
+        # train_semseg(sweep)
 
-        # Save segmentation outputs
-        save_semseg(sweep)
+        # # Save segmentation outputs
+        # save_semseg(sweep)
 
-        # Measure segmentation outputs
-        measure_semseg(sweep)
+        # # Measure segmentation outputs
+        # measure_semseg(sweep)

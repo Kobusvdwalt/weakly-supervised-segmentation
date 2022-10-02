@@ -6,4 +6,6 @@ if __name__ == '__main__':
     from experiments import exp_full
     from experiments import exp_psa
 
-    exp_psa.start()
+    exp_erase.start()
+
+    # exp_psa.start()

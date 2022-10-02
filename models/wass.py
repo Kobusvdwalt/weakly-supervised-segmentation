@@ -23,16 +23,15 @@ class Classifier(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.classifier = torch.nn.Sequential(
-            build_vgg_features(),
+            build_vgg_features(unfreeze_from=0),
             torch.nn.Conv2d(512, 20, kernel_size=1),
             torch.nn.AdaptiveAvgPool2d(output_size=(1, 1)),
             torch.nn.Flatten(1, 3),
             torch.nn.Sigmoid()
         )
         self.loss_bce = torch.nn.BCELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.00015)
-        # self.optimizer = torch.optim.SGD(self.parameters(), lr=0.02, momentum=0.7)
-        print_params(self.parameters(), "Classifier")
+        # self.optimizer = torch.optim.SGD(self.parameters(), lr=0.02, weight_decay=0.0001)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0002, weight_decay=0.000001)
 
     def forward(self, image):
         return self.classifier(image)
@@ -45,31 +44,36 @@ class Adversary(torch.nn.Module):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        self.features = build_vgg_features(unfreeze_from=4)
+        self.features = build_vgg_features(unfreeze_from=0)
+        self.lconv = self.double_conv(552, 512, 3, 1)
         self.dconv_up3 = self.double_conv(512, 256, 3, 1)
         self.dconv_up2 = self.double_conv(256, 128, 3, 1)
         self.dconv_up1 = self.double_conv(128, 64, 3, 1)
-        self.dconv_up0 = self.double_conv(64, 32, 3, 1)
-        self.last_conv = torch.nn.Conv2d(128, 64, 3, padding=1)
-        self.conv_comb = torch.nn.Conv2d(64, 20, 1)
+
+        self.conv_comb = torch.nn.Conv2d(64, 3, 1, bias=False)
+
+        self.econv1 = self.double_conv(64, 16, 3, 1)
+        # self.econv2 = self.double_conv(32, 16, 3, 1)
+        self.econv_comb = torch.nn.Conv2d(16, 1, 1, bias=False)
 
         self.intermediate_outputs = []
         def output_hook(module, input, output):
             self.intermediate_outputs.append(output)
 
-        self.features[3].register_forward_hook(output_hook)
+        # self.features[3].register_forward_hook(output_hook)
         self.features[8].register_forward_hook(output_hook)
         self.features[15].register_forward_hook(output_hook)
         self.features[22].register_forward_hook(output_hook)
 
-        self.upsample_low = torch.nn.Upsample(scale_factor=8, mode='bilinear')
-        self.upsample = torch.nn.Upsample(scale_factor=2, mode='nearest')
+        self.pool2 = torch.nn.AvgPool2d((2, 2))
+        self.pool4 = torch.nn.AvgPool2d((4, 4))
+        self.pool8 = torch.nn.AvgPool2d((8, 8))
         self.gmp = torch.nn.AdaptiveAvgPool2d((1, 1))
 
         self.loss_bce = torch.nn.BCELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001)
-        # self.optimizer = torch.optim.SGD(self.parameters(), lr=0.01, momentum=0.7)
-        print_params(self.parameters(), "Adversary")
+        self.loss_mse = torch.nn.MSELoss()
+        # self.optimizer = torch.optim.SGD(self.parameters(), lr=0.01, weight_decay=0.0001)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0001, weight_decay=0.000001)
 
     def double_conv(self, in_channels, out_channels, kernel_size=3, padding=1):
         return torch.nn.Sequential(
@@ -79,40 +83,52 @@ class Adversary(torch.nn.Module):
             torch.nn.LeakyReLU(negative_slope=0.11, inplace=True),
         )
 
-    def segment(self, image, c_label):
-        c_label = c_label.clone()
-        c_label[c_label > 0.5] = 1
-        c_label[c_label < 0.5] = 0
+    def segment(self, image, c_label, c_erase):
+        # Build features
+        features = self.features(image)
 
-        adversary = self.features(image)
+        # Integrate labels
+        c_label = torch.unsqueeze(c_label, -1)
+        c_label = torch.unsqueeze(c_label, -1)
+        tensor_c_label = torch.ones((features.shape[0], c_label.shape[1], features.shape[2], features.shape[3]), device=self.device) * c_label
+        
+        c_erase = torch.unsqueeze(c_erase, -1)
+        c_erase = torch.unsqueeze(c_erase, -1)
+        tensor_c_erase = torch.ones((features.shape[0], c_erase.shape[1], features.shape[2], features.shape[3]), device=self.device) * c_erase
 
-        adversary = self.upsample(adversary)
-        adversary += self.intermediate_outputs[3]
-        adversary = self.dconv_up3(adversary)
+        features = torch.cat([features, tensor_c_label, tensor_c_erase], dim=1)
+        features = self.lconv(features)
 
-        adversary = self.upsample(adversary)
-        adversary += self.intermediate_outputs[2]
-        adversary = self.dconv_up2(adversary)
+        # Upscale
+        features = F.interpolate(features, scale_factor=2, mode='bilinear')
+        features += self.intermediate_outputs[2]
+        features = self.dconv_up3(features)
 
-        # adversary = self.upsample(adversary)
-        # adversary += self.intermediate_outputs[1]
-        # adversary = self.dconv_up1(adversary)
+        features = F.interpolate(features, scale_factor=2, mode='bilinear')
+        features += self.intermediate_outputs[1]
+        features = self.dconv_up2(features)
 
-        # adversary = self.upsample(adversary)
-        # adversary += self.intermediate_outputs[0]
-        # adversary = self.dconv_up0(adversary)
+        features = F.interpolate(features, scale_factor=2, mode='bilinear')
+        features += self.intermediate_outputs[0]
+        features = self.dconv_up1(features)
 
-        # adversary = self.upsample(adversary)
-        adversary = self.upsample(adversary)
-        adversary = self.upsample(adversary)
+        # Reconstruct
+        recon = self.conv_comb(features)
 
-        adversary = self.last_conv(adversary)
-        adversary = self.conv_comb(adversary)
+        # Erase
+        erase = self.econv1(features)
+        # erase = self.econv2(erase)
+        erase = self.econv_comb(erase)
 
         self.intermediate_outputs.clear()
         
-        return adversary
+        return {
+            'recon': recon,
+            'erase': erase,
+        }
 
+def relut(x):
+    return (1 / (1 + 10 * torch.pow(x, 2)))
 
 
 ##################################################################################################################
@@ -130,100 +146,102 @@ class WASS(ModelBase):
         self.classifier = Classifier()
         self.adversary = Adversary()
 
-
-        torch.backends.cudnn.deterministic = True
-        random.seed(1)
-        torch.manual_seed(1)
-        torch.cuda.manual_seed(1)
-        np.random.seed(1)
-
     def event(self, event):
         super().event(event)
 
-        # if event['name'] == 'get_cam':
-        #     image_cu = event['inputs']['image'].cuda(non_blocking=True)
-        #     result_cu = self.segment(image_cu)
-        #     return result_cu.detach().cpu().numpy()
+        classifier_warmup = 50
+        class_keep_probability = 0.5
+        erase_image_probability = 0.5
 
         if event['name'] == 'minibatch':
             image_cu = event['inputs']['image'].cuda(non_blocking=True)
             label_classification_cu = event['labels']['classification'].cuda(non_blocking=True)
+            erase_classification_cu = label_classification_cu.clone()
+            erase_classification_cu[torch.rand(erase_classification_cu.shape) > class_keep_probability] = 0
 
             # Run input through adversary
-            adversary_result = self.adversary.segment(image_cu, label_classification_cu)
+            adversary_result = self.adversary.segment(image_cu, label_classification_cu, erase_classification_cu)
+            adversary_recon = adversary_result['recon']
+            adversary_recon = torch.pow(adversary_recon, 2)
 
-            adversary_result = torch.sigmoid(adversary_result) # TODO: try a linear normalization
-            mask, _ = torch.max(adversary_result, dim=1, keepdim=True)
-            erased = image_cu * (1 - mask)
+            image_cu_target = F.adaptive_avg_pool2d(image_cu, (adversary_recon.shape[2], adversary_recon.shape[3]))
+
+            # Erase image
+            adversary_erase = adversary_result['erase']
+            adversary_erase = torch.sigmoid(adversary_erase)
+            image_cu_erased = image_cu_target * (1 - adversary_erase) + 0.5 * adversary_erase
+
+            # Train classifier
+            if random.random() > erase_image_probability:
+                c_classification = self.classifier(image_cu_target)
+            else:
+                c_classification = self.classifier(image_cu_erased)
+
+            # Classifier loss
+            c_loss = self.classifier.loss_bce(c_classification, label_classification_cu)
+
+            # Reconstruction loss
+            a_loss_reconstruction = F.mse_loss(adversary_recon, image_cu_target)
+
+            # Constrain loss
+            a_loss_constrain = torch.mean(adversary_erase) * 0.01
+
+            # Classifier loss erased
+            a_classification = self.classifier(image_cu_erased)
+            # gt = label_classification_cu > 0.5
+            # gt_c_erased = erase_classification_cu[gt]
+            # gt_c_classi = a_classification[gt]
+            a_loss_classifier_erase = F.mse_loss(a_classification, erase_classification_cu)
+
+            # Final loss
+            a_loss = a_loss_reconstruction + a_loss_classifier_erase + a_loss_constrain
 
             # Training controller
             self.step += 1
             if self.step % 2 == 0:
                 self.step_count_c += 1
-
-                # Train classifier
-                if random.random() > 0.5:
-                    classification = self.classifier(image_cu)
-                else:
-                    classification = self.classifier(erased)
-
-                loss_c_bce = self.classifier.loss_bce(classification, label_classification_cu)
+                
                 self.classifier.optimizer.zero_grad()
-                loss_c_bce.backward()
+                c_loss.backward()
                 self.classifier.optimizer.step()
 
-            else:
+            elif self.step > classifier_warmup:
                 self.step_count_a += 1
-                
-                # Train adversary
-                # Channel loss
-                adversary_classification = F.adaptive_avg_pool2d(adversary_result, [1, 1])
-                adversary_classification = torch.flatten(adversary_classification, 1)
-                loss_a_channel = self.adversary.loss_bce(adversary_classification, label_classification_cu)
-
-                # Classifier loss
-                classification = self.classifier(erased)
-                loss_a_classifier = torch.mean(classification[label_classification_cu > 0.5])
-
-                # Constrain loss
-                loss_a_constrain = torch.mean(adversary_result)
-                loss_a = loss_a_constrain * 0.3 + loss_a_channel * 0.45 + loss_a_classifier * 0.45
 
                 self.adversary.optimizer.zero_grad()
-                loss_a.backward()
+                a_loss.backward()
                 self.adversary.optimizer.step()
 
-                wandb.log({
-                    'step': self.step,
-                    'loss': loss_a.detach().cpu().numpy(),
-                    'loss_a_channel': loss_a_channel.detach().cpu().numpy(),
-                    'loss_a_classifier': loss_a_classifier.detach().cpu().numpy(),
-                    'loss_a_constrain': loss_a_constrain.detach().cpu().numpy(),
-                    # 'accuracy': metrics.accuracy_score(label.flatten(), predi.flatten()),
-                    # 'f1': metrics.f1_score(label.flatten(), predi.flatten())
-                })
+            wandb.log({
+                'step': self.step,
+                'c_loss': c_loss.detach().cpu().numpy(),
+                'a_loss': a_loss.detach().cpu().numpy(),
+                'a_loss_reconstruction': a_loss_reconstruction.detach().cpu().numpy(),
+                'a_loss_classifier_erase': a_loss_classifier_erase.detach().cpu().numpy(),
+            })
 
             if self.step % 16 == 0:
-                # label = label_classification_cu.detach().cpu().numpy()
-                # predi = adversary_classification.detach().cpu().numpy().flatten()
+                mask_vis = adversary_erase[0, 0].detach().cpu().numpy()
+                erased_vis = image_cu_erased[0].detach().cpu().numpy()
+                target_vis = image_cu_target[0].detach().cpu().numpy()
+                recon_vis = adversary_recon[0].detach().cpu().numpy()
+                image_vis = image_cu[0].detach().cpu().numpy()
 
-                # predi[predi > 0.5] = 1
-                # predi[predi <= 0.5] = 0
+                erased_vis = np.moveaxis(erased_vis, 0, -1)
+                recon_vis = np.moveaxis(recon_vis, 0, -1)
+                image_vis = np.moveaxis(image_vis, 0, -1)
+                target_vis = np.moveaxis(target_vis, 0, -1)
 
-                
+                mask_vis = cv2.resize(mask_vis, (image_vis.shape[0], image_vis.shape[1]), interpolation=cv2.INTER_NEAREST)
+                target_vis = cv2.resize(target_vis, (image_vis.shape[0], image_vis.shape[1]), interpolation=cv2.INTER_NEAREST)
+                recon_vis = cv2.resize(recon_vis, (image_vis.shape[0], image_vis.shape[1]), interpolation=cv2.INTER_NEAREST)
+                erased_vis = cv2.resize(erased_vis, (image_vis.shape[0], image_vis.shape[1]), interpolation=cv2.INTER_NEAREST)
 
-                erased = erased[0].detach().cpu().numpy()
-                erased = np.moveaxis(erased, 0, -1)
-
-                predi_vis = adversary_result[0].clone().detach().cpu().numpy()
-                predi_vis_bg = np.power(1 - np.max(predi_vis, axis=0, keepdims=True), 4)
-                predi_vis = np.concatenate((predi_vis_bg, predi_vis), axis=0)
-                cv2.imshow('predi', label_to_image(predi_vis))
-
-                mask_vis = mask[0, 0].detach().cpu().numpy()
-                mask_vis = mask_vis - np.min(mask_vis) / (np.max(mask_vis + 1e-5))
-                cv2.imshow('erased', erased)
                 cv2.imshow('mask_vis', mask_vis)
+                cv2.imshow('erased_vis', erased_vis)
+                cv2.imshow('recon_vis', recon_vis)
+                cv2.imshow('image_vis', image_vis)
+                cv2.imshow('target_vis', target_vis)
                 cv2.waitKey(1)
 
 
@@ -232,6 +250,16 @@ class WASS(ModelBase):
 
 
 
+                # label = label_classification_cu.detach().cpu().numpy()
+                # predi = adversary_classification.detach().cpu().numpy().flatten()
+
+                # predi[predi > 0.5] = 1
+                # predi[predi <= 0.5] = 0
+
+                # predi_vis = adversary_result[0].clone().detach().cpu().numpy()
+                # predi_vis_bg = np.power(1 - np.max(predi_vis, axis=0, keepdims=True), 4)
+                # predi_vis = np.concatenate((predi_vis_bg, predi_vis), axis=0)
+                # cv2.imshow('predi', label_to_image(predi_vis))
 
 
 

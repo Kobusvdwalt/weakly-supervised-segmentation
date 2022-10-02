@@ -1,6 +1,4 @@
-import torch
-
-def train_model(dataloaders, model, num_epochs, validation_mod=1):
+def train_model(dataloaders, model, num_epochs):
     step = 0
     for epoch in range(num_epochs):
         model.event({
@@ -40,6 +38,6 @@ def train_model(dataloaders, model, num_epochs, validation_mod=1):
             'batch': batch_no+1
         })
 
-def train(model, dataloaders, epochs = 15, validation_mod=1):
+def train(model, dataloaders, epochs = 15):
     model.to(model.device)
-    train_model(dataloaders, model, epochs, validation_mod)
+    train_model(dataloaders, model, epochs)

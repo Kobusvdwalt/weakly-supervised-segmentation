@@ -143,3 +143,9 @@ def downsample_shape(mask, size):
 
 def class_word_to_index(class_word):
     return class_list.index(class_word)
+
+
+def renormalize(image):
+    image += np.abs(np.min(image))
+    image /= np.max([np.max(image), 1])
+    return image
